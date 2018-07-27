@@ -149,6 +149,14 @@ typedef struct remote_fencing_op_s {
 
 } remote_fencing_op_t;
 
+enum st_callback_flags {
+    st_callback_unknown        = 0x0000,
+    st_callback_notify_fence   = 0x0001,
+    st_callback_device_add     = 0x0004,
+    st_callback_device_del     = 0x0010,
+    st_callback_notify_history = 0x0020
+};
+
 /*
  * Complex fencing requirements are specified via fencing topologies.
  * A topology consists of levels; each level is a list of fencing devices.

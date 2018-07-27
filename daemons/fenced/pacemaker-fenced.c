@@ -265,15 +265,19 @@ long long
 get_stonith_flag(const char *name)
 {
     if (safe_str_eq(name, T_STONITH_NOTIFY_FENCE)) {
-        return 0x01;
+        return st_callback_notify_fence;
 
     } else if (safe_str_eq(name, STONITH_OP_DEVICE_ADD)) {
-        return 0x04;
+        return st_callback_device_add;
 
     } else if (safe_str_eq(name, STONITH_OP_DEVICE_DEL)) {
-        return 0x10;
+        return st_callback_device_del;
+
+    } else if (safe_str_eq(name, T_STONITH_NOTIFY_HISTORY)) {
+        return st_callback_notify_history;
+
     }
-    return 0;
+    return st_callback_unknown;
 }
 
 static void
