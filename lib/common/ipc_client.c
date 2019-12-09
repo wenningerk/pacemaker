@@ -84,6 +84,7 @@ pcmk_new_ipc_api(pcmk_ipc_api_t **api, enum pcmk_ipc_server server)
             break;
 
         case pcmk_ipc_pacemakerd:
+            (*api)->cmds = pcmk__pacemakerd_api_methods();
             break;
 
         case pcmk_ipc_schedulerd:
