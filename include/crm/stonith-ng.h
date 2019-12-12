@@ -56,9 +56,10 @@ enum stonith_call_options {
     /*! Only report back if operation is a success in callback */
     st_opt_report_only_success = 0x00004000,
     /* used where ever apropriate - e.g. cleanup of history */
-    st_opt_cleanup         = 0x000080000,
+    st_opt_cleanup         = 0x00080000,
     /* used where ever apropriate - e.g. send out a history query to all nodes */
-    st_opt_broadcast       = 0x000100000,
+    st_opt_broadcast       = 0x00100000,
+    st_opt_check_watchdog  = 0x00200000,
 };
 
 /*! Order matters here, do not change values */
@@ -75,7 +76,6 @@ enum op_state
 enum stonith_namespace {
     st_namespace_invalid,
     st_namespace_any,
-    st_namespace_internal,  // Implemented internally by Pacemaker
 
     /* Neither of these projects are active any longer, but the fence agent
      * interfaces they created are still in use and supported by Pacemaker.

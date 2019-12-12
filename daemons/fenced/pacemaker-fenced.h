@@ -259,5 +259,6 @@ extern gboolean stand_alone;
 extern GHashTable *device_list;
 extern GHashTable *topology;
 extern long stonith_watchdog_timeout_ms;
+GListPtr stonith_watchdog_targets;
 
 extern GHashTable *stonith_remote_op_list;

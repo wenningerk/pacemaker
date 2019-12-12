@@ -55,6 +55,10 @@ GList *stonith__parse_targets(const char *hosts);
 gboolean stonith__later_succeeded(stonith_history_t *event, stonith_history_t *top_history);
 stonith_history_t *stonith__sort_history(stonith_history_t *history);
 
+gboolean stonith__string_in_list(GListPtr list, const char *item);
+
+gboolean watchdog_fencing_enabled_for_node_api(stonith_t *st, const char *node);
+
 #  define ST_LEVEL_MAX 10
 
 #  define F_STONITH_CLIENTID      "st_clientid"
@@ -133,7 +137,8 @@ stonith_history_t *stonith__sort_history(stonith_history_t *history);
 #  define STONITH_OP_LEVEL_ADD       "st_level_add"
 #  define STONITH_OP_LEVEL_DEL       "st_level_remove"
 
-#  define STONITH_WATCHDOG_AGENT  "#watchdog"
+#  define STONITH_WATCHDOG_AGENT  "fence_watchdog"
+#  define STONITH_WATCHDOG_ID     "watchdog"
 
 #  ifdef HAVE_STONITH_STONITH_H
 // utilities from st_lha.c

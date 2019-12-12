@@ -42,6 +42,7 @@
 char *stonith_our_uname = NULL;
 char *stonith_our_uuid = NULL;
 long stonith_watchdog_timeout_ms = 0;
+GListPtr stonith_watchdog_targets = NULL;
 
 static GMainLoop *mainloop = NULL;
 
@@ -78,6 +79,8 @@ st_ipc_created(qb_ipcs_connection_t * c)
 {
     crm_trace("Connection created for %p", c);
 }
+
+static bool have_cib_devices = FALSE;
 
 /* Exit code means? */
 static int32_t
@@ -712,6 +715,21 @@ cib_devices_update(void)
 }
 
 static void
+update_watchdog_device(void)
+{
+    if(stonith_watchdog_timeout_ms > 0) {
+        xmlNode *xml;
+
+        xml = create_device_registration_xml(STONITH_WATCHDOG_ID, st_namespace_rhcs, STONITH_WATCHDOG_AGENT, NULL, NULL);
+        stonith_device_register(xml, NULL, FALSE);
+
+        free_xml(xml);
+    } else {
+        stonith_device_remove(STONITH_WATCHDOG_ID, TRUE);
+    }
+}
+
+static void
 update_cib_stonith_devices_v2(const char *event, xmlNode * msg)
 {
     xmlNode *change = NULL;
@@ -748,6 +766,10 @@ update_cib_stonith_devices_v2(const char *event, xmlNode * msg)
             if (search != NULL) {
                 *search = 0;
                 stonith_device_remove(rsc_id, TRUE);
+                if (safe_str_eq(rsc_id, STONITH_WATCHDOG_ID)) {
+                    /* falling back to implicit definition */
+                    update_watchdog_device();
+                }
             } else {
                 crm_warn("Ignoring malformed CIB update (resource deletion)");
             }
@@ -765,6 +787,7 @@ update_cib_stonith_devices_v2(const char *event, xmlNode * msg)
 
     if(needs_update) {
         crm_info("Updating device list from the cib: %s", reason);
+        update_watchdog_device();
         cib_devices_update();
     } else {
         crm_trace("No updates for device list found in cib");
@@ -830,6 +853,7 @@ update_cib_stonith_devices_v1(const char *event, xmlNode * msg)
 
     if(needs_update) {
         crm_info("Updating device list from the cib: %s", reason);
+        update_watchdog_device();
         cib_devices_update();
     }
 }
@@ -986,24 +1010,75 @@ update_fencing_topology(const char *event, xmlNode * msg)
         crm_warn("Unknown patch format: %d", format);
     }
 }
-static bool have_cib_devices = FALSE;
+
+static gboolean
+update_stonith_config(gboolean *stonith_enabled, long *watchdog_timeout)
+{
+    xmlNode *stonith_enabled_xml = NULL;
+    xmlNode *stonith_watchdog_xml = NULL;
+    const char *stonith_enabled_s = NULL;
+
+    if (local_cib == NULL) {
+        return FALSE;
+    }
+
+    stonith_enabled_xml = get_xpath_object("//nvpair[@name='stonith-enabled']",
+                                           local_cib, LOG_NEVER);
+    if (stonith_enabled_xml) {
+        stonith_enabled_s = crm_element_value(stonith_enabled_xml, XML_NVPAIR_ATTR_VALUE);
+    }
+
+    if (stonith_enabled_s == NULL || crm_is_true(stonith_enabled_s)) {
+        long timeout_ms = 0;
+        const char *value = NULL;
+
+        *stonith_enabled = TRUE;
+
+        stonith_watchdog_xml = get_xpath_object("//nvpair[@name='stonith-watchdog-timeout']",
+                                                local_cib, LOG_NEVER);
+        if (stonith_watchdog_xml) {
+            value = crm_element_value(stonith_watchdog_xml, XML_NVPAIR_ATTR_VALUE);
+        }
+
+        if(value) {
+            timeout_ms = crm_get_msec(value);
+        }
+        if (timeout_ms < 0) {
+            timeout_ms = crm_auto_watchdog_timeout();
+        }
+
+        if (timeout_ms != *watchdog_timeout) {
+            crm_notice("New watchdog timeout %lds (was %lds)", timeout_ms/1000, *watchdog_timeout/1000);
+            *watchdog_timeout = timeout_ms;
+        }
+
+    } else {
+        *watchdog_timeout = 0;
+        *stonith_enabled = FALSE;
+    }
+    return TRUE;
+}
+
+static xmlNode *next_cib = NULL;
 
 static void
 update_cib_cache_cb(const char *event, xmlNode * msg)
 {
     int rc = pcmk_ok;
-    xmlNode *stonith_enabled_xml = NULL;
-    xmlNode *stonith_watchdog_xml = NULL;
-    const char *stonith_enabled_s = NULL;
+    gboolean stonith_enabled = TRUE;
     static gboolean stonith_enabled_saved = TRUE;
 
-    if(!have_cib_devices) {
-        crm_trace("Skipping updates until we get a full dump");
-        return;
-
-    } else if(msg == NULL) {
+    if (msg == NULL) {
         crm_trace("Missing %s update", event);
         return;
+    }
+
+    if ((next_cib == NULL) && (local_cib != NULL)) {
+         if(!have_cib_devices) {
+            next_cib = copy_xml(local_cib);
+         } else {
+            next_cib = local_cib;
+         }
     }
 
     /* Maintain a local copy of the CIB so that we have full access
@@ -1020,7 +1095,7 @@ update_cib_cache_cb(const char *event, xmlNode * msg)
 
         patchset = get_message_xml(msg, F_CIB_UPDATE_RESULT);
         xml_log_patchset(LOG_TRACE, "Config update", patchset);
-        rc = xml_apply_patchset(local_cib, patchset, TRUE);
+        rc = xml_apply_patchset(next_cib, patchset, TRUE);
         switch (rc) {
             case pcmk_ok:
             case -pcmk_err_old_data:
@@ -1028,62 +1103,40 @@ update_cib_cache_cb(const char *event, xmlNode * msg)
             case -pcmk_err_diff_resync:
             case -pcmk_err_diff_failed:
                 crm_notice("[%s] Patch aborted: %s (%d)", event, pcmk_strerror(rc), rc);
-                free_xml(local_cib);
-                local_cib = NULL;
+                free_xml(next_cib);
+                next_cib = NULL;
                 break;
             default:
                 crm_warn("[%s] ABORTED: %s (%d)", event, pcmk_strerror(rc), rc);
-                free_xml(local_cib);
-                local_cib = NULL;
+                free_xml(next_cib);
+                next_cib = NULL;
         }
     }
 
-    if (local_cib == NULL) {
+    if (next_cib == NULL) {
         crm_trace("Re-requesting the full cib");
-        rc = cib_api->cmds->query(cib_api, NULL, &local_cib, cib_scope_local | cib_sync_call);
+        rc = cib_api->cmds->query(cib_api, NULL, &next_cib, cib_scope_local | cib_sync_call);
         if(rc != pcmk_ok) {
             crm_err("Couldn't retrieve the CIB: %s (%d)", pcmk_strerror(rc), rc);
             return;
         }
-        CRM_ASSERT(local_cib != NULL);
+        CRM_ASSERT(next_cib != NULL);
         stonith_enabled_saved = FALSE; /* Trigger a full refresh below */
     }
 
     crm_peer_caches_refresh(local_cib);
 
-    stonith_enabled_xml = get_xpath_object("//nvpair[@name='stonith-enabled']",
-                                           local_cib, LOG_NEVER);
-    if (stonith_enabled_xml) {
-        stonith_enabled_s = crm_element_value(stonith_enabled_xml, XML_NVPAIR_ATTR_VALUE);
+    if(!have_cib_devices) {
+        crm_trace("Collecting updates until we get a full dump");
+        return;
     }
 
-    if (stonith_enabled_s == NULL || crm_is_true(stonith_enabled_s)) {
-        long timeout_ms = 0;
-        const char *value = NULL;
+    local_cib = next_cib;
+    next_cib = NULL;
 
-        stonith_watchdog_xml = get_xpath_object("//nvpair[@name='stonith-watchdog-timeout']",
-                                                local_cib, LOG_NEVER);
-        if (stonith_watchdog_xml) {
-            value = crm_element_value(stonith_watchdog_xml, XML_NVPAIR_ATTR_VALUE);
-        }
+    update_stonith_config(&stonith_enabled, &stonith_watchdog_timeout_ms);
 
-        if(value) {
-            timeout_ms = crm_get_msec(value);
-        }
-        if (timeout_ms < 0) {
-            timeout_ms = crm_auto_watchdog_timeout();
-        }
-
-        if(timeout_ms != stonith_watchdog_timeout_ms) {
-            crm_notice("New watchdog timeout %lds (was %lds)", timeout_ms/1000, stonith_watchdog_timeout_ms/1000);
-            stonith_watchdog_timeout_ms = timeout_ms;
-        }
-
-    } else {
-        stonith_watchdog_timeout_ms = 0;
-    }
-
-    if (stonith_enabled_s && crm_is_true(stonith_enabled_s) == FALSE) {
+    if (!stonith_enabled) {
         crm_trace("Ignoring cib updates while stonith is disabled");
         stonith_enabled_saved = FALSE;
         return;
@@ -1092,6 +1145,7 @@ update_cib_cache_cb(const char *event, xmlNode * msg)
         crm_info("Updating stonith device and topology lists now that stonith is enabled");
         stonith_enabled_saved = TRUE;
         fencing_topology_init();
+        update_watchdog_device();
         cib_devices_update();
 
     } else {
@@ -1103,14 +1157,32 @@ update_cib_cache_cb(const char *event, xmlNode * msg)
 static void
 init_cib_cache_cb(xmlNode * msg, int call_id, int rc, xmlNode * output, void *user_data)
 {
+    gboolean stonith_enabled = FALSE;
     crm_info("Updating device list from the cib: init");
-    have_cib_devices = TRUE;
     local_cib = copy_xml(output);
+
+    update_stonith_config(&stonith_enabled, &stonith_watchdog_timeout_ms);
+
+    while (TRUE) {
+        if (!stonith_enabled) {
+            crm_trace("Ignoring further cib config as stonith is disabled");
+        } else {
+            fencing_topology_init();
+            update_watchdog_device();
+            cib_devices_update();
+        }
+        /* loop till we finish without getting updates in the background */
+        if (next_cib == NULL) {
+            break;
+        }
+        free_xml(local_cib);
+        local_cib = next_cib;
+        next_cib = NULL;
+    }
 
     crm_peer_caches_refresh(local_cib);
 
-    fencing_topology_init();
-    cib_devices_update();
+    have_cib_devices = TRUE;
 }
 
 static void
@@ -1490,25 +1562,6 @@ main(int argc, char **argv)
 
     init_device_list();
     init_topology_list();
-
-    if(stonith_watchdog_timeout_ms > 0) {
-        int rc;
-        xmlNode *xml;
-        stonith_key_value_t *params = NULL;
-
-        params = stonith_key_value_add(params, STONITH_ATTR_HOSTLIST, stonith_our_uname);
-
-        xml = create_device_registration_xml("watchdog", st_namespace_internal,
-                                             STONITH_WATCHDOG_AGENT, params,
-                                             NULL);
-        stonith_key_value_freeall(params, 1, 1);
-        rc = stonith_device_register(xml, NULL, FALSE);
-        free_xml(xml);
-        if (rc != pcmk_ok) {
-            crm_crit("Cannot register watchdog pseudo fence agent");
-            crm_exit(CRM_EX_FATAL);
-        }
-    }
 
     stonith_ipc_server_init(&ipcs, &ipc_callbacks);
 

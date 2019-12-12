@@ -1513,7 +1513,7 @@ call_remote_stonith(remote_fencing_op_t * op, st_query_result_t * peer)
             g_source_remove(op->op_timer_one);
         }
 
-        if(stonith_watchdog_timeout_ms > 0 && device && safe_str_eq(device, "watchdog")) {
+        if(stonith_watchdog_timeout_ms > 0 && device && safe_str_eq(device, STONITH_WATCHDOG_ID)) {
             crm_notice("Waiting %lds for %s to self-fence (%s) for client %s.%.8s",
                        stonith_watchdog_timeout_ms/1000, op->target, op->action,
                        op->client_name, op->id);
@@ -1566,13 +1566,22 @@ call_remote_stonith(remote_fencing_op_t * op, st_query_result_t * peer)
          * but we have all the expected replies, then no devices
          * are available to execute the fencing operation. */
 
-        if(stonith_watchdog_timeout_ms && (device == NULL || safe_str_eq(device, "watchdog"))) {
-            crm_notice("Waiting %lds for %s to self-fence (%s) for client %s.%.8s",
-                     stonith_watchdog_timeout_ms/1000, op->target,
-                     op->action, op->client_name, op->id);
+        /* why is there an additional check (device == NULL || safe_str_eq(device, STONITH_WATCHDOG_ID))
+         * that prevents fall through to watchdog !!!! ????
+         */
+        if(stonith_watchdog_timeout_ms && (device == NULL || safe_str_eq(device, STONITH_WATCHDOG_ID))) {
+            if ((stonith_watchdog_targets == NULL) ||
+                stonith__string_in_list(stonith_watchdog_targets, op->target)) {
+                    crm_notice("Waiting %lds for %s to self-fence (%s) for client %s.%.8s",
+                               stonith_watchdog_timeout_ms/1000, op->target,
+                               op->action, op->client_name, op->id);
 
-            op->op_timer_one = g_timeout_add(stonith_watchdog_timeout_ms, remote_op_watchdog_done, op);
-            return;
+                    op->op_timer_one = g_timeout_add(stonith_watchdog_timeout_ms, remote_op_watchdog_done, op);
+                    return;
+                } else {
+                    crm_info("Skipping fallback to watchdog-fencing as %s is not in host-list",
+                             op->target);
+                }
         }
 
         if (op->state == st_query) {

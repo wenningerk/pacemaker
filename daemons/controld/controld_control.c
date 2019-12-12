@@ -20,6 +20,9 @@
 #include <crm/cluster/election.h>
 #include <crm/common/ipcs.h>
 
+#include <crm/stonith-ng.h>
+#include <crm/fencing/internal.h>
+
 #include <pacemaker-controld.h>
 
 qb_ipcs_service_t *ipcs = NULL;
@@ -581,7 +584,7 @@ static pe_cluster_option crmd_opts[] = {
         "Delay cluster recovery for the configured interval to allow for additional/related events to occur.\n"
         "Useful if your configuration is sensitive to the order in which ping updates arrive."
     },
-	{ "stonith-watchdog-timeout", NULL, "time", NULL, NULL, &check_sbd_timeout,
+	{ "stonith-watchdog-timeout", NULL, "time", NULL, NULL, &controld_verify_stonith_watchdog_timeout,
 	  "How long to wait before we can assume nodes are safely down", NULL
         },
         { "stonith-max-attempts",NULL,"integer",NULL,"10",&check_positive_number,
