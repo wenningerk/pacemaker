@@ -244,12 +244,16 @@ pcmk__get_sbd_timeout(void)
 bool
 pcmk__get_sbd_sync_resource_startup(void)
 {
-    static bool sync_resource_startup = false;
+    static bool sync_resource_startup = true; // default overruled by env
     static bool checked_sync_resource_startup = false;
 
     if (!checked_sync_resource_startup) {
-        sync_resource_startup =
-            crm_is_true(getenv("SBD_SYNC_RESOURCE_STARTUP"));
+        gboolean ret = FALSE;
+        const char *s = getenv("SBD_SYNC_RESOURCE_STARTUP");
+
+        if ((s != NULL) && (crm_str_to_boolean(s, &ret) > 0)) {
+            sync_resource_startup = ret;
+        }
         checked_sync_resource_startup = true;
     }
 
