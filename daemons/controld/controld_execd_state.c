@@ -268,7 +268,7 @@ lrm_state_get_list(void)
 }
 
 void
-lrm_state_disconnect_only(lrm_state_t * lrm_state)
+controld_execd_state_disconnect(lrm_state_t *lrm_state)
 {
     unsigned int removed = 0;
 

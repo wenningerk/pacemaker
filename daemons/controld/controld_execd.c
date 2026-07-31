@@ -373,7 +373,7 @@ do_lrm_control(long long action, enum crmd_fsa_cause cause,
 
         controld_clear_fsa_input_flags(R_LRM_CONNECTED);
 
-        lrm_state_disconnect_only(lrm_state);
+        controld_execd_state_disconnect(lrm_state);
         g_clear_pointer(&lrm_state->conn, lrmd_api_delete);
 
         lrm_state_reset_tables(lrm_state, FALSE);

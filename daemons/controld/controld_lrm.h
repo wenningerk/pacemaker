@@ -130,7 +130,7 @@ lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
  * resources go to the executor, and remote connection resources are handled
  * locally in the controller.
  */
-void lrm_state_disconnect_only(lrm_state_t * lrm_state);
+void controld_execd_state_disconnect(lrm_state_t *lrm_state);
 int controld_connect_local_executor(lrm_state_t *lrm_state);
 int controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
                                      int port, int timeout);
