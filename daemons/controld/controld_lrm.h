@@ -131,7 +131,6 @@ lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
  * locally in the controller.
  */
 void lrm_state_disconnect_only(lrm_state_t * lrm_state);
-void lrm_state_disconnect(lrm_state_t * lrm_state);
 int controld_connect_local_executor(lrm_state_t *lrm_state);
 int controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
                                      int port, int timeout);

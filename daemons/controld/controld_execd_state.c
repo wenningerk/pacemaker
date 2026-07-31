@@ -289,13 +289,6 @@ lrm_state_disconnect_only(lrm_state_t * lrm_state)
     }
 }
 
-void
-lrm_state_disconnect(lrm_state_t * lrm_state)
-{
-    lrm_state_disconnect_only(lrm_state);
-    g_clear_pointer(&lrm_state->conn, lrmd_api_delete);
-}
-
 // \return Standard Pacemaker return code
 int
 controld_connect_local_executor(lrm_state_t *lrm_state)

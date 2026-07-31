@@ -550,7 +550,8 @@ monitor_timeout_cb(void *data)
 
     if(lrm_state) {
         // @TODO Should we move this before reporting the result above?
-        lrm_state_disconnect(lrm_state);
+        lrm_state_disconnect_only(lrm_state);
+        g_clear_pointer(&lrm_state->conn, lrmd_api_delete);
     }
     return FALSE;
 }
@@ -775,7 +776,9 @@ handle_remote_ra_stop(lrm_state_t * lrm_state, remote_ra_cmd_t * cmd)
     }
 
     lrm_remote_clear_flags(lrm_state, remote_active);
-    lrm_state_disconnect(lrm_state);
+
+    lrm_state_disconnect_only(lrm_state);
+    g_clear_pointer(&lrm_state->conn, lrmd_api_delete);
 
     g_list_free_full(lrm_state->remote_ra_data->cmds, free_cmd);
     lrm_state->remote_ra_data->cmds = NULL;
