@@ -956,7 +956,7 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
              * executor. Otherwise, we're likely dealing with an unresponsive
              * remote node, which is not an FSA failure.
              */
-            if (lrm_state_is_local(lrm_state) == TRUE) {
+            if (controld_is_local_node(lrm_state->node_name)) {
                 register_fsa_error(I_FAIL, NULL);
             }
             return rc;
@@ -2038,7 +2038,7 @@ do_lrm_rsc_op(lrm_state_t *lrm_state, lrmd_rsc_info_t *rsc, xmlNode *msg,
         pending->params = op->params;
         op->params = NULL;
 
-    } else if (lrm_state_is_local(lrm_state)) {
+    } else if (controld_is_local_node(lrm_state->node_name)) {
         pcmk__err("Could not initiate %s action for resource %s locally: %s "
                   QB_XS " rc=%d",
                   operation, rsc->id, pcmk_rc_str(rc), rc);

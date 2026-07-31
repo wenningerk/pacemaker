@@ -122,12 +122,6 @@ fail_pending_op(void *key, void *value, void *user_data)
     return true;
 }
 
-gboolean
-lrm_state_is_local(lrm_state_t *lrm_state)
-{
-    return (lrm_state != NULL) && controld_is_local_node(lrm_state->node_name);
-}
-
 /*!
  * \internal
  * \brief Create executor state entry for a node and add it to the state table

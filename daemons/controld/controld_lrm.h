@@ -102,12 +102,6 @@ struct pending_deletion_op_s {
 };
 
 /*!
- * \brief Check whether this the local IPC connection to the executor
- */
-gboolean
-lrm_state_is_local(lrm_state_t *lrm_state);
-
-/*!
  * \brief Clear all state information from a single state entry.
  * \note It sometimes useful to save metadata cache when it won't go stale.
  * \note This does not close the executor connection
