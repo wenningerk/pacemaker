@@ -80,32 +80,46 @@ free_recurring_op(void *data)
     free(op);
 }
 
+/*!
+ * \internal
+ * \brief Fail a pending operation in response to executor disconnection
+ *
+ * \param[in]     key        Executor call key (<tt>const char *</tt>)
+ * \param[in,out] value      Operation (<tt>active_op_t *</tt>)
+ * \param[in,out] user_data  Executor state (<tt>lrm_state_t *</tt>)
+ *
+ * \return \c true (to remove \p key and \p value from the hash table)
+ *
+ * \note This is a \c GHRFunc.
+ */
 static gboolean
 fail_pending_op(void *key, void *value, void *user_data)
 {
-    lrm_state_t *lrm_state = user_data;
+    const char *call_key = key;
     active_op_t *op = value;
+    lrm_state_t *lrm_state = user_data;
+
     lrmd_event_data_t *event = lrmd_new_event(op->rsc_id, op->op_type,
                                               op->interval_ms);
 
-    pcmk__trace("Pre-emptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
+    pcmk__trace("Preemptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
                 op->rsc_id, op->op_type, op->interval_ms,
-                lrm_state->node_name, (const char *) key, op->user_data);
+                lrm_state->node_name, call_key, op->user_data);
 
     event->type = lrmd_event_exec_complete;
     event->user_data = pcmk__str_copy(op->user_data);
-    lrmd__set_result(event, PCMK_OCF_UNKNOWN_ERROR, PCMK_EXEC_NOT_CONNECTED,
-                     "Action was pending when executor connection was dropped");
+    event->call_id = op->call_id;
     event->t_run = op->start_time;
     event->t_rcchange = op->start_time;
-
-    event->call_id = op->call_id;
-    event->remote_nodename = pcmk__str_copy(lrm_state->node_name);
     event->params = pcmk__str_table_dup(op->params);
+    event->remote_nodename = pcmk__str_copy(lrm_state->node_name);
+
+    lrmd__set_result(event, PCMK_OCF_UNKNOWN_ERROR, PCMK_EXEC_NOT_CONNECTED,
+                     "Action was pending when executor connection was dropped");
 
     process_lrm_event(lrm_state, event, op, NULL);
     lrmd_free_event(event);
-    return TRUE;
+    return true;
 }
 
 gboolean
