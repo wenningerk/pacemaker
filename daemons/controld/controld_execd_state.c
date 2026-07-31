@@ -337,27 +337,33 @@ is_rsc_active(const lrm_state_t *lrm_state, const char *rsc_id)
     pcmk__trace("Processing %s: %s.%d=%d", rsc_id, last->op_type,
                 last->interval_ms, last->rc);
 
-    if ((last->rc == PCMK_OCF_OK)
-        && pcmk__str_eq(last->op_type, PCMK_ACTION_STOP, pcmk__str_none)) {
-        return false;
-    }
-
-    if ((last->rc == PCMK_OCF_OK)
-        && pcmk__str_eq(last->op_type, PCMK_ACTION_MIGRATE_TO,
-                        pcmk__str_none)) {
-        // A stricter check is too complex ... leave that to the scheduler
-        return false;
-    }
-
     if (last->rc == PCMK_OCF_NOT_RUNNING) {
         return false;
     }
 
     if ((last->interval_ms == 0) && (last->rc == PCMK_OCF_NOT_CONFIGURED)) {
-        // Badly configured resources can't be reliably stopped
+        /* The resource probably never started due to misconfiguration. Don't
+         * let the caller log the resource as active.
+         */
         return false;
     }
 
+    if (last->rc != PCMK_OCF_OK) {
+        // Resource may be active, so let the caller log it as active
+        return true;
+    }
+
+    if (pcmk__str_eq(last->op_type, PCMK_ACTION_STOP, pcmk__str_none)) {
+        // Resource has cleanly stopped
+        return false;
+    }
+
+    if (pcmk__str_eq(last->op_type, PCMK_ACTION_MIGRATE_TO, pcmk__str_none)) {
+        // Resource has successfully migrated to another node
+        return false;
+    }
+
+    // Last operation was successful and left the resource active
     return true;
 }
 
