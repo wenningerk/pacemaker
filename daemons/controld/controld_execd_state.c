@@ -264,21 +264,36 @@ lrm_state_get_list(void)
     return g_hash_table_get_values(lrm_state_table);
 }
 
+/*!
+ * \internal
+ * \brief Cancel a given operation if it's recurring
+ *
+ * \param[in]     key        Executor call key (<tt>const char *</tt>)
+ * \param[in]     value      Operation (<tt>const active_op_t *</tt>)
+ * \param[in,out] user_data  Executor state (<tt>lrm_state_t *</tt>)
+ *
+ * \return \c true if a cancellation request was sent to the executor
+ *         successfully, or \c false otherwise (including if the operation was
+ *         not found or was already canceled)
+ *
+ * \note This is a \c GHRFunc.
+ */
 static gboolean
-stop_recurring_actions(void *key, void *value, void *user_data)
+cancel_recurring_op(void *key, void *value, void *user_data)
 {
-    gboolean remove = FALSE;
+    const char *call_key = key;
+    const active_op_t *op = value;
     lrm_state_t *lrm_state = user_data;
-    active_op_t *op = value;
 
-    if (op->interval_ms != 0) {
-        pcmk__info("Cancelling op %d for %s (%s)", op->call_id, op->rsc_id,
-                   (const char *) key);
-        remove = !controld_execd_cancel_op(lrm_state, op->rsc_id, key,
-                                           op->call_id, false);
+    if (op->interval_ms == 0) {
+        return false;
     }
 
-    return remove;
+    pcmk__info("Cancelling op %d for %s (%s)", op->call_id, op->rsc_id,
+               call_key);
+
+    return !controld_execd_cancel_op(lrm_state, op->rsc_id, call_key,
+                                     op->call_id, false);
 }
 
 static gboolean
@@ -345,7 +360,7 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
 
         unsigned int removed =
             g_hash_table_foreach_remove(lrm_state->active_ops,
-                                        stop_recurring_actions, lrm_state);
+                                        cancel_recurring_op, lrm_state);
         unsigned int nremaining = g_hash_table_size(lrm_state->active_ops);
 
         if (removed || nremaining) {
