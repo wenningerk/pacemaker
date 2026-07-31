@@ -367,6 +367,27 @@ is_rsc_active(const lrm_state_t *lrm_state, const char *rsc_id)
     return true;
 }
 
+/*!
+ * \internal
+ * \brief Increment a counter if a given operation is non-recurring
+ *
+ * \param[in]     key        Ignored
+ * \param[in]     value      Operation (<tt>const active_op_t *</tt>)
+ * \param[in,out] user_data  Counter (<tt>unsigned int *</tt>)
+ *
+ * \note This is a \c GHFunc.
+ */
+static void
+count_non_recurring_op(void *key, void *value, void *user_data)
+{
+    const active_op_t *op = value;
+    unsigned int *count = user_data;
+
+    if (op->interval_ms == 0) {
+        (*count)++;
+    }
+}
+
 bool
 lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                          int log_level)
@@ -392,28 +413,28 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
     }
 
     if ((lrm_state->active_ops != NULL)
-        && lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
+        && (g_hash_table_size(lrm_state->active_ops) > 0)) {
 
-        unsigned int removed =
-            g_hash_table_foreach_remove(lrm_state->active_ops,
-                                        cancel_recurring_op, lrm_state);
-        unsigned int nremaining = g_hash_table_size(lrm_state->active_ops);
+        unsigned int size = g_hash_table_size(lrm_state->active_ops);
+        unsigned int removed = 0;
 
-        if ((removed > 0) || (nremaining > 0)) {
-            pcmk__notice("Stopped %u recurring operation%s at %s (%u "
-                         "remaining)", removed, pcmk__plural_s(removed), when,
-                         nremaining);
+        if (lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
+            removed = g_hash_table_foreach_remove(lrm_state->active_ops,
+                                                  cancel_recurring_op,
+                                                  lrm_state);
+            size -= removed;
         }
-    }
 
-    if (lrm_state->active_ops != NULL) {
-        g_hash_table_iter_init(&iter, lrm_state->active_ops);
-        while (g_hash_table_iter_next(&iter, NULL, (void **) &pending)) {
-            /* Ignore recurring actions in the shutdown calculations */
-            if (pending->interval_ms == 0) {
-                count++;
-            }
-        }
+        pcmk__notice("Canceled %u recurring operation%s at %s (%u operations "
+                     "remaining)", removed, pcmk__plural_s(removed), when,
+                     size);
+
+        /* Ignore recurring operations. Don't just subtract removed from the
+         * original size, because lrm_state->conn may not be connected, or
+         * cancel_recurring_op() may return false for a recurring operation.
+         */
+        g_hash_table_foreach(lrm_state->active_ops, count_non_recurring_op,
+                             &count);
     }
 
     if (count > 0) {
@@ -437,6 +458,8 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
 
         return true;
     }
+
+    // There are no non-recurring actions in lrm_state->active_ops
 
     if (lrm_state->resource_history == NULL) {
         return true;
@@ -470,10 +493,7 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                                           (void **) &pending)) {
 
                 if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
-                    const bool recurring = (pending->interval_ms != 0);
-
-                    pcmk__notice("%s %s (%s) incomplete at %s",
-                                 (recurring? "Recurring action" : "Action"),
+                    pcmk__notice("Recurring action %s (%s) incomplete at %s",
                                  call_key, pending->op_key, when);
                 }
             }
