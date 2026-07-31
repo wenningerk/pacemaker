@@ -184,7 +184,7 @@ internal_lrm_state_destroy(void *data)
 }
 
 void
-lrm_state_reset_tables(lrm_state_t * lrm_state, gboolean reset_metadata)
+lrm_state_reset_tables(lrm_state_t *lrm_state)
 {
     if (lrm_state->resource_history) {
         pcmk__trace("Resetting resource history cache with %u members",
@@ -205,9 +205,6 @@ lrm_state_reset_tables(lrm_state_t * lrm_state, gboolean reset_metadata)
         pcmk__trace("Resetting resource information cache with %u members",
                     g_hash_table_size(lrm_state->rsc_info_cache));
         g_hash_table_remove_all(lrm_state->rsc_info_cache);
-    }
-    if (reset_metadata) {
-        metadata_cache_reset(lrm_state->metadata_cache);
     }
 }
 

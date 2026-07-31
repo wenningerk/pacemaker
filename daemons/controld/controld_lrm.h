@@ -106,7 +106,7 @@ struct pending_deletion_op_s {
  * \note It sometimes useful to save metadata cache when it won't go stale.
  * \note This does not close the executor connection
  */
-void lrm_state_reset_tables(lrm_state_t * lrm_state, gboolean reset_metadata);
+void lrm_state_reset_tables(lrm_state_t *lrm_state);
 GList *lrm_state_get_list(void);
 
 /*!
