@@ -868,8 +868,9 @@ handle_remote_ra_exec(void *user_data)
             report_remote_ra_result(cmd);
 
         } else if (!strcmp(cmd->action, PCMK_ACTION_MONITOR)) {
+            if ((lrm_state->conn != NULL)
+                && lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
 
-            if (lrm_state_is_connected(lrm_state) == TRUE) {
                 rc = lrm_state_poke_connection(lrm_state);
                 if (rc < 0) {
                     pcmk__set_result(&cmd->result, PCMK_OCF_UNKNOWN_ERROR,
@@ -1258,17 +1259,23 @@ void
 remote_ra_fail(const char *node_name)
 {
     lrm_state_t *lrm_state = NULL;
+    remote_ra_data_t *ra_data = NULL;
 
     CRM_CHECK(node_name != NULL, return);
 
     lrm_state = controld_get_executor_state(node_name, false);
-    if (lrm_state && lrm_state_is_connected(lrm_state)) {
-        remote_ra_data_t *ra_data = lrm_state->remote_ra_data;
 
-        pcmk__info("Failing monitors on Pacemaker Remote node %s", node_name);
-        ra_data->recurring_cmds = fail_all_monitor_cmds(ra_data->recurring_cmds);
-        ra_data->cmds = fail_all_monitor_cmds(ra_data->cmds);
+    if ((lrm_state == NULL) || (lrm_state->conn == NULL)
+        || !lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
+
+        return;
     }
+
+    ra_data = lrm_state->remote_ra_data;
+
+    pcmk__info("Failing monitors on Pacemaker Remote node %s", node_name);
+    ra_data->recurring_cmds = fail_all_monitor_cmds(ra_data->recurring_cmds);
+    ra_data->cmds = fail_all_monitor_cmds(ra_data->cmds);
 }
 
 /* A guest node fencing implied by host fencing looks like:

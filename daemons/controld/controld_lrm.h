@@ -135,7 +135,6 @@ void lrm_state_disconnect(lrm_state_t * lrm_state);
 int controld_connect_local_executor(lrm_state_t *lrm_state);
 int controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
                                      int port, int timeout);
-int lrm_state_is_connected(lrm_state_t * lrm_state);
 int lrm_state_poke_connection(lrm_state_t * lrm_state);
 
 int lrm_state_get_metadata(lrm_state_t * lrm_state,

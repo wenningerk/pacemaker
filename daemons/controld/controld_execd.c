@@ -398,6 +398,8 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
     rsc_history_t *entry = NULL;
     active_op_t *pending = NULL;
 
+    pcmk__assert(lrm_state != NULL);
+
     pcmk__debug("Checking for active resources before exit");
 
     if (cur_state == S_TERMINATE) {
@@ -408,7 +410,9 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
         when = "shutdown... waiting";
     }
 
-    if ((lrm_state->active_ops != NULL) && lrm_state_is_connected(lrm_state)) {
+    if ((lrm_state->active_ops != NULL)
+        && lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
+
         unsigned int removed =
             g_hash_table_foreach_remove(lrm_state->active_ops,
                                         stop_recurring_actions, lrm_state);
@@ -921,7 +925,7 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
     CRM_CHECK(lrm_state && rsc_xml && rsc_info, return -EINVAL);
     CRM_CHECK(id, return -EINVAL);
 
-    if (lrm_state_is_connected(lrm_state) == FALSE) {
+    if (!lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
         return -ENOTCONN;
     }
 

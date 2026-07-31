@@ -297,15 +297,6 @@ lrm_state_disconnect(lrm_state_t * lrm_state)
 }
 
 int
-lrm_state_is_connected(lrm_state_t * lrm_state)
-{
-    if (!lrm_state->conn) {
-        return FALSE;
-    }
-    return lrm_state->conn->cmds->is_connected(lrm_state->conn);
-}
-
-int
 lrm_state_poke_connection(lrm_state_t * lrm_state)
 {
 
