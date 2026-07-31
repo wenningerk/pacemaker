@@ -367,11 +367,11 @@ is_rsc_active(const lrm_state_t *lrm_state, const char *rsc_id)
     return true;
 }
 
-gboolean
+bool
 lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state, int log_level)
 {
     int counter = 0;
-    gboolean rc = TRUE;
+    bool rc = true;
     const char *when = "lrm disconnect";
 
     GHashTableIter gIter;
@@ -430,7 +430,7 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
             }
 
         } else {
-            rc = FALSE;
+            rc = false;
         }
         return rc;
     }

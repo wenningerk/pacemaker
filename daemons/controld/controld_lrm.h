@@ -125,8 +125,8 @@ void controld_execd_state_table_free(void);
 
 lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
 
-gboolean lrm_state_verify_stopped(lrm_state_t *lrm_state,
-                                  enum crmd_fsa_state cur_state, int log_level);
+bool lrm_state_verify_stopped(lrm_state_t *lrm_state,
+                              enum crmd_fsa_state cur_state, int log_level);
 
 /*!
  * The functions below are wrappers for the executor API the controller uses.
