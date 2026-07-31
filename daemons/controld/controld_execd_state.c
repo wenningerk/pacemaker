@@ -368,15 +368,16 @@ is_rsc_active(const lrm_state_t *lrm_state, const char *rsc_id)
 }
 
 bool
-lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state, int log_level)
+lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
+                         int log_level)
 {
-    int counter = 0;
+    unsigned int count = 0;
     const char *when = "lrm disconnect";
 
-    GHashTableIter gIter;
-    const char *key = NULL;
-    rsc_history_t *entry = NULL;
-    active_op_t *pending = NULL;
+    GHashTableIter iter;
+    const char *call_key = NULL;
+    const rsc_history_t *entry = NULL;
+    const active_op_t *pending = NULL;
 
     pcmk__assert(lrm_state != NULL);
 
@@ -398,26 +399,26 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
                                         cancel_recurring_op, lrm_state);
         unsigned int nremaining = g_hash_table_size(lrm_state->active_ops);
 
-        if (removed || nremaining) {
+        if ((removed > 0) || (nremaining > 0)) {
             pcmk__notice("Stopped %u recurring operation%s at %s (%u "
-                         "remaining)",
-                         removed, pcmk__plural_s(removed), when, nremaining);
+                         "remaining)", removed, pcmk__plural_s(removed), when,
+                         nremaining);
         }
     }
 
     if (lrm_state->active_ops != NULL) {
-        g_hash_table_iter_init(&gIter, lrm_state->active_ops);
-        while (g_hash_table_iter_next(&gIter, NULL, (void **)&pending)) {
+        g_hash_table_iter_init(&iter, lrm_state->active_ops);
+        while (g_hash_table_iter_next(&iter, NULL, (void **) &pending)) {
             /* Ignore recurring actions in the shutdown calculations */
             if (pending->interval_ms == 0) {
-                counter++;
+                count++;
             }
         }
     }
 
-    if (counter > 0) {
-        do_crm_log(log_level, "%d pending executor operation%s at %s",
-                   counter, pcmk__plural_s(counter), when);
+    if (count > 0) {
+        do_crm_log(log_level, "%u pending executor operation%s at %s", count,
+                   pcmk__plural_s(count), when);
 
         if ((cur_state != S_TERMINATE)
             && pcmk__is_set(controld_globals.fsa_input_register,
@@ -426,11 +427,11 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
             return false;
         }
 
-        g_hash_table_iter_init(&gIter, lrm_state->active_ops);
-        while (g_hash_table_iter_next(&gIter, (void **) &key,
+        g_hash_table_iter_init(&iter, lrm_state->active_ops);
+        while (g_hash_table_iter_next(&iter, (void **) &call_key,
                                       (void **) &pending)) {
 
-            do_crm_log(log_level, "Pending action: %s (%s)", key,
+            do_crm_log(log_level, "Pending action: %s (%s)", call_key,
                        pending->op_key);
         }
 
@@ -446,39 +447,42 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
         when = "shutdown";
     }
 
-    counter = 0;
-    g_hash_table_iter_init(&gIter, lrm_state->resource_history);
-    while (g_hash_table_iter_next(&gIter, NULL, (void **) &entry)) {
+    count = 0;
+    g_hash_table_iter_init(&iter, lrm_state->resource_history);
+    while (g_hash_table_iter_next(&iter, NULL, (void **) &entry)) {
         if (!is_rsc_active(lrm_state, entry->id)) {
             continue;
         }
 
-        counter++;
+        count++;
         if (log_level == LOG_ERR) {
             pcmk__info("Found %s active at %s", entry->id, when);
+
         } else {
             pcmk__trace("Found %s active at %s", entry->id, when);
         }
-        if (lrm_state->active_ops != NULL) {
-            GHashTableIter hIter;
 
-            g_hash_table_iter_init(&hIter, lrm_state->active_ops);
-            while (g_hash_table_iter_next(&hIter, (void **) &key,
+        if (lrm_state->active_ops != NULL) {
+            GHashTableIter iter2;
+
+            g_hash_table_iter_init(&iter2, lrm_state->active_ops);
+            while (g_hash_table_iter_next(&iter2, (void **) &call_key,
                                           (void **) &pending)) {
+
                 if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
                     const bool recurring = (pending->interval_ms != 0);
 
                     pcmk__notice("%s %s (%s) incomplete at %s",
                                  (recurring? "Recurring action" : "Action"),
-                                 key, pending->op_key, when);
+                                 call_key, pending->op_key, when);
                 }
             }
         }
     }
 
-    if (counter) {
-        pcmk__err("%d resource%s active at %s",
-                  counter, ((counter == 1)? " was" : "s were"), when);
+    if (count > 0) {
+        pcmk__err("%u resource%s active at %s", count,
+                  pcmk__plural_alt(count, " was", "s were"), when);
     }
 
     return true;
