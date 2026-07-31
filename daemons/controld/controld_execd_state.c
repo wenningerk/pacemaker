@@ -388,6 +388,26 @@ count_non_recurring_op(void *key, void *value, void *user_data)
     }
 }
 
+/*!
+ * \internal
+ * \brief Log a given pending operation at a given level
+ *
+ * \param[in] key        Executor call key (<tt>const char *</tt>)
+ * \param[in] value      Operation (<tt>const active_op_t *</tt>)
+ * \param[in] user_data  Log level (<tt>GINT_TO_POINTER(<int>)</tt>)
+ *
+ * \note This is a \c GHFunc.
+ */
+static void
+log_pending_op(void *key, void *value, void *user_data)
+{
+    const char *call_key = key;
+    const active_op_t *op = value;
+    int log_level = GPOINTER_TO_INT(user_data);
+
+    do_crm_log(log_level, "Pending operation: %s (%s)", call_key, op->op_key);
+}
+
 bool
 lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                          int log_level)
@@ -396,9 +416,7 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
     const char *when = "lrm disconnect";
 
     GHashTableIter iter;
-    const char *call_key = NULL;
     const rsc_history_t *entry = NULL;
-    const active_op_t *pending = NULL;
 
     pcmk__assert(lrm_state != NULL);
 
@@ -448,14 +466,8 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
             return false;
         }
 
-        g_hash_table_iter_init(&iter, lrm_state->active_ops);
-        while (g_hash_table_iter_next(&iter, (void **) &call_key,
-                                      (void **) &pending)) {
-
-            do_crm_log(log_level, "Pending action: %s (%s)", call_key,
-                       pending->op_key);
-        }
-
+        g_hash_table_foreach(lrm_state->active_ops, log_pending_op,
+                             GINT_TO_POINTER(log_level));
         return true;
     }
 
@@ -487,6 +499,8 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
 
         if (lrm_state->active_ops != NULL) {
             GHashTableIter iter2;
+            const char *call_key = NULL;
+            const active_op_t *pending = NULL;
 
             g_hash_table_iter_init(&iter2, lrm_state->active_ops);
             while (g_hash_table_iter_next(&iter2, (void **) &call_key,
