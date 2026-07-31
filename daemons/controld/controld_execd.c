@@ -800,16 +800,17 @@ lrm_clear_last_failure(const char *rsc_id, const char *node_name,
     }
 }
 
-/* Returns: gboolean - cancellation is in progress */
-static gboolean
-cancel_op(lrm_state_t * lrm_state, const char *rsc_id, const char *key, int op, gboolean remove)
+// Returns: bool - cancellation is in progress
+bool
+controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
+                         const char *key, int op, bool remove)
 {
     int rc = pcmk_ok;
     char *local_key = NULL;
     active_op_t *pending = NULL;
 
-    CRM_CHECK(op != 0, return FALSE);
-    CRM_CHECK(rsc_id != NULL, return FALSE);
+    CRM_CHECK(op != 0, return false);
+    CRM_CHECK(rsc_id != NULL, return false);
     if (key == NULL) {
         local_key = make_stop_id(rsc_id, op);
         key = local_key;
@@ -825,14 +826,14 @@ cancel_op(lrm_state_t * lrm_state, const char *rsc_id, const char *key, int op, 
         if (pcmk__is_set(pending->flags, active_op_cancelled)) {
             pcmk__debug("Operation %s already cancelled", key);
             free(local_key);
-            return FALSE;
+            return false;
         }
         controld_set_active_op_flags(pending, active_op_cancelled);
 
     } else {
         pcmk__info("No pending op found for %s", key);
         free(local_key);
-        return FALSE;
+        return false;
     }
 
     pcmk__debug("Cancelling op %d for %s (%s)", op, rsc_id, key);
@@ -841,21 +842,21 @@ cancel_op(lrm_state_t * lrm_state, const char *rsc_id, const char *key, int op, 
     if (rc == pcmk_ok) {
         pcmk__debug("Op %d for %s (%s): cancelled", op, rsc_id, key);
         free(local_key);
-        return TRUE;
+        return true;
     }
 
     pcmk__debug("Op %d for %s (%s): Nothing to cancel", op, rsc_id, key);
     /* The caller needs to make sure the entry is
      * removed from the active operations list
      *
-     * Usually by returning TRUE inside the worker function
+     * Usually by returning true inside the worker function
      * supplied to g_hash_table_foreach_remove()
      *
      * Not removing the entry from active operations will block
      * the node from shutting down
      */
     free(local_key);
-    return FALSE;
+    return false;
 }
 
 struct cancel_data {
@@ -875,7 +876,8 @@ cancel_action_by_key(void *key, void *value, void *user_data)
 
     if (pcmk__str_eq(op->op_key, data->key, pcmk__str_none)) {
         data->done = TRUE;
-        remove = !cancel_op(data->lrm_state, data->rsc->id, key, op->call_id, data->remove);
+        remove = !controld_execd_cancel_op(data->lrm_state, data->rsc->id, key,
+                                           op->call_id, data->remove);
     }
     return remove;
 }
@@ -1288,7 +1290,8 @@ static bool do_lrm_cancel(ha_msg_input_t *input, lrm_state_t *lrm_state,
 
     } else {
         // Normal case when the scheduler cancels a removed op
-        in_progress = cancel_op(lrm_state, rsc->id, NULL, call, TRUE);
+        in_progress = controld_execd_cancel_op(lrm_state, rsc->id, NULL, call,
+                                               true);
     }
 
     // Acknowledge cancellation operation if for a remote connection resource
@@ -1817,7 +1820,8 @@ stop_recurring_action_by_rsc(void *key, void *value, void *user_data)
 
         pcmk__debug("Cancelling op %d for %s (%s)", op->call_id, op->rsc_id,
                     (const char *) key);
-        remove = !cancel_op(event->lrm_state, event->rsc->id, key, op->call_id, FALSE);
+        remove = !controld_execd_cancel_op(event->lrm_state, event->rsc->id,
+                                           key, op->call_id, false);
     }
 
     return remove;
@@ -1833,7 +1837,8 @@ stop_recurring_actions(void *key, void *value, void *user_data)
     if (op->interval_ms != 0) {
         pcmk__info("Cancelling op %d for %s (%s)", op->call_id, op->rsc_id,
                    (const char *) key);
-        remove = !cancel_op(lrm_state, op->rsc_id, key, op->call_id, FALSE);
+        remove = !controld_execd_cancel_op(lrm_state, op->rsc_id, key,
+                                           op->call_id, false);
     }
 
     return remove;

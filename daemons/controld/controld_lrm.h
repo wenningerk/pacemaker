@@ -135,6 +135,8 @@ int controld_connect_local_executor(lrm_state_t *lrm_state);
 int controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
                                      int port, int timeout);
 
+bool controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
+                              const char *key, int op, bool remove);
 int lrm_state_get_metadata(lrm_state_t * lrm_state,
                            const char *class,
                            const char *provider,
