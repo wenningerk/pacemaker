@@ -21,33 +21,61 @@
 
 static GHashTable *lrm_state_table = NULL;
 
+/*!
+ * \internal
+ * \brief Free an \c lrmd_rsc_info_t object
+ *
+ * This is a wrapper for \c lrmd_free_rsc_info for use with items in a
+ * \c GHashTable.
+ *
+ * \param[in,out] data  Resource info to free (<tt>lrmd_rsc_info_t *</tt>)
+ *
+ * \note This is a \c GDestroyNotify.
+ */
 static void
-free_rsc_info(void *value)
+free_rsc_info(void *data)
 {
-    lrmd_rsc_info_t *rsc_info = value;
+    lrmd_rsc_info_t *rsc_info = data;
 
     lrmd_free_rsc_info(rsc_info);
 }
 
+/*!
+ * \internal
+ * \brief Free a pending deletion operation
+ *
+ * \param[in,out] data  Operation to free
+ *                      (<tt>struct pending_deletion_op_s *</tt>)
+ *
+ * \note This is a \c GDestroyNotify.
+ */
 static void
-free_deletion_op(void *value)
+free_pending_deletion_op(void *data)
 {
-    struct pending_deletion_op_s *op = value;
+    struct pending_deletion_op_s *op = data;
 
     free(op->rsc);
     delete_ha_msg_input(op->input);
     free(op);
 }
 
+/*!
+ * \internal
+ * \brief Free a recurring operation
+ *
+ * \param[in,out] data  Operation to free (<tt>active_op_t *</tt>)
+ *
+ * \note This is a \c GDestroyNotify.
+ */
 static void
-free_recurring_op(void *value)
+free_recurring_op(void *data)
 {
-    active_op_t *op = value;
+    active_op_t *op = data;
 
-    free(op->user_data);
     free(op->rsc_id);
     free(op->op_type);
     free(op->op_key);
+    free(op->user_data);
     g_clear_pointer(&op->params, g_hash_table_destroy);
     free(op);
 }
@@ -108,7 +136,7 @@ lrm_state_create(const char *node_name)
 
     state->node_name = pcmk__str_copy(node_name);
     state->rsc_info_cache = pcmk__strkey_table(NULL, free_rsc_info);
-    state->deletion_ops = pcmk__strkey_table(free, free_deletion_op);
+    state->deletion_ops = pcmk__strkey_table(free, free_pending_deletion_op);
     state->active_ops = pcmk__strkey_table(free, free_recurring_op);
     state->resource_history = pcmk__strkey_table(NULL, history_free);
     state->metadata_cache = metadata_cache_new();
