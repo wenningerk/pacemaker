@@ -17,7 +17,7 @@
 #include <controld_messages.h>
 #include <controld_remote_ra.h>     // remote_ra_data_t
 
-extern gboolean verify_stopped(enum crmd_fsa_state cur_state, int log_level);
+void verify_stopped(enum crmd_fsa_state cur_state, int log_level);
 void lrm_clear_last_failure(const char *rsc_id, const char *node_name,
                             const char *operation, unsigned int interval_ms);
 void controld_invoke_execd(fsa_data_t *msg_data);

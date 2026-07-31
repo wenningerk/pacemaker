@@ -1784,25 +1784,20 @@ controld_ack_event_directly(const char *to_host, const char *to_sys,
     pcmk__xml_free(reply);
 }
 
-gboolean
+void
 verify_stopped(enum crmd_fsa_state cur_state, int log_level)
 {
-    gboolean res = TRUE;
     GList *lrm_state_list = lrm_state_get_list();
     GList *state_entry;
 
     for (state_entry = lrm_state_list; state_entry != NULL; state_entry = state_entry->next) {
         lrm_state_t *lrm_state = state_entry->data;
 
-        if (!lrm_state_verify_stopped(lrm_state, cur_state, log_level)) {
-            /* keep iterating through all even when false is returned */
-            res = FALSE;
-        }
+        lrm_state_verify_stopped(lrm_state, cur_state, log_level);
     }
 
     controld_set_fsa_input_flags(R_SENT_RSC_STOP);
-    g_clear_pointer(&lrm_state_list, g_list_free);
-    return res;
+    g_list_free(lrm_state_list);
 }
 
 struct stop_recurring_action_s {
