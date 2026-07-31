@@ -371,7 +371,6 @@ bool
 lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state, int log_level)
 {
     int counter = 0;
-    bool rc = true;
     const char *when = "lrm disconnect";
 
     GHashTableIter gIter;
@@ -420,23 +419,26 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
         do_crm_log(log_level, "%d pending executor operation%s at %s",
                    counter, pcmk__plural_s(counter), when);
 
-        if ((cur_state == S_TERMINATE)
-            || !pcmk__is_set(controld_globals.fsa_input_register,
-                             R_SENT_RSC_STOP)) {
-            g_hash_table_iter_init(&gIter, lrm_state->active_ops);
-            while (g_hash_table_iter_next(&gIter, (void **) &key,
-                                          (void **) &pending)) {
-                do_crm_log(log_level, "Pending action: %s (%s)", key, pending->op_key);
-            }
+        if ((cur_state != S_TERMINATE)
+            && pcmk__is_set(controld_globals.fsa_input_register,
+                            R_SENT_RSC_STOP)) {
 
-        } else {
-            rc = false;
+            return false;
         }
-        return rc;
+
+        g_hash_table_iter_init(&gIter, lrm_state->active_ops);
+        while (g_hash_table_iter_next(&gIter, (void **) &key,
+                                      (void **) &pending)) {
+
+            do_crm_log(log_level, "Pending action: %s (%s)", key,
+                       pending->op_key);
+        }
+
+        return true;
     }
 
     if (lrm_state->resource_history == NULL) {
-        return rc;
+        return true;
     }
 
     if (pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
@@ -479,7 +481,7 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
                   counter, ((counter == 1)? " was" : "s were"), when);
     }
 
-    return rc;
+    return true;
 }
 
 void
