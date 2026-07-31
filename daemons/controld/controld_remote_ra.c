@@ -871,7 +871,7 @@ handle_remote_ra_exec(void *user_data)
             if ((lrm_state->conn != NULL)
                 && lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
 
-                rc = lrm_state_poke_connection(lrm_state);
+                rc = lrm_state->conn->cmds->poke_connection(lrm_state->conn);
                 if (rc < 0) {
                     pcmk__set_result(&cmd->result, PCMK_OCF_UNKNOWN_ERROR,
                                      PCMK_EXEC_ERROR, pcmk_strerror(rc));
