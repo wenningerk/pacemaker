@@ -296,39 +296,69 @@ cancel_recurring_op(void *key, void *value, void *user_data)
                                      op->call_id, false);
 }
 
-static gboolean
-is_rsc_active(lrm_state_t * lrm_state, const char *rsc_id)
+/*!
+ * \internal
+ * \brief Check whether a resource should be logged as active on a given node
+ *
+ * This function is for logging purposes only. It's called when the controller
+ * is exiting or disconnecting from the executor, to determine whether to log a
+ * message noting that the resource is active.
+ *
+ * We check the resource history of the node to which \p lrm_state belongs.
+ *
+ * A resource is considered inactive on the node if its last recorded operation
+ * there:
+ * * returned \c PCMK_OCF_NOT_RUNNING
+ * * returned \c PCMK_OCF_NOT_CONFIGURED and was not a recurring operation
+ * * returned \c PCMK_OCF_OK and was a \c PCMK_ACTION_STOP or
+ *   \c PCMK_ACTION_MIGRATE_TO operation
+ *
+ * Otherwise, the resource is considered active.
+ *
+ * \param[in] lrm_state  Executor state
+ * \param[in] rsc_id     Resource ID
+ *
+ * \return \c true if the resource should be logged as active, or \c false
+ *         otherwise
+ */
+static bool
+is_rsc_active(const lrm_state_t *lrm_state, const char *rsc_id)
 {
-    rsc_history_t *entry = NULL;
+    const rsc_history_t *entry = NULL;
+    const lrmd_event_data_t *last = NULL;
 
     entry = g_hash_table_lookup(lrm_state->resource_history, rsc_id);
-    if (entry == NULL || entry->last == NULL) {
-        return FALSE;
+    if ((entry == NULL) || (entry->last == NULL)) {
+        return false;
     }
 
-    pcmk__trace("Processing %s: %s.%d=%d", rsc_id, entry->last->op_type,
-                entry->last->interval_ms, entry->last->rc);
-    if ((entry->last->rc == PCMK_OCF_OK)
-        && pcmk__str_eq(entry->last->op_type, PCMK_ACTION_STOP,
-                        pcmk__str_casei)) {
-        return FALSE;
+    last = entry->last;
 
-    } else if (entry->last->rc == PCMK_OCF_OK
-               && pcmk__str_eq(entry->last->op_type, PCMK_ACTION_MIGRATE_TO,
-                               pcmk__str_casei)) {
+    pcmk__trace("Processing %s: %s.%d=%d", rsc_id, last->op_type,
+                last->interval_ms, last->rc);
+
+    if ((last->rc == PCMK_OCF_OK)
+        && pcmk__str_eq(last->op_type, PCMK_ACTION_STOP, pcmk__str_none)) {
+        return false;
+    }
+
+    if ((last->rc == PCMK_OCF_OK)
+        && pcmk__str_eq(last->op_type, PCMK_ACTION_MIGRATE_TO,
+                        pcmk__str_none)) {
         // A stricter check is too complex ... leave that to the scheduler
-        return FALSE;
-
-    } else if (entry->last->rc == PCMK_OCF_NOT_RUNNING) {
-        return FALSE;
-
-    } else if ((entry->last->interval_ms == 0)
-               && (entry->last->rc == PCMK_OCF_NOT_CONFIGURED)) {
-        /* Badly configured resources can't be reliably stopped */
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    if (last->rc == PCMK_OCF_NOT_RUNNING) {
+        return false;
+    }
+
+    if ((last->interval_ms == 0) && (last->rc == PCMK_OCF_NOT_CONFIGURED)) {
+        // Badly configured resources can't be reliably stopped
+        return false;
+    }
+
+    return true;
 }
 
 gboolean
@@ -411,7 +441,7 @@ lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state,
     counter = 0;
     g_hash_table_iter_init(&gIter, lrm_state->resource_history);
     while (g_hash_table_iter_next(&gIter, NULL, (void **) &entry)) {
-        if (is_rsc_active(lrm_state, entry->id) == FALSE) {
+        if (!is_rsc_active(lrm_state, entry->id)) {
             continue;
         }
 
