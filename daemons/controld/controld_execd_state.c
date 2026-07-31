@@ -264,6 +264,173 @@ lrm_state_get_list(void)
     return g_hash_table_get_values(lrm_state_table);
 }
 
+static gboolean
+stop_recurring_actions(void *key, void *value, void *user_data)
+{
+    gboolean remove = FALSE;
+    lrm_state_t *lrm_state = user_data;
+    active_op_t *op = value;
+
+    if (op->interval_ms != 0) {
+        pcmk__info("Cancelling op %d for %s (%s)", op->call_id, op->rsc_id,
+                   (const char *) key);
+        remove = !controld_execd_cancel_op(lrm_state, op->rsc_id, key,
+                                           op->call_id, false);
+    }
+
+    return remove;
+}
+
+static gboolean
+is_rsc_active(lrm_state_t * lrm_state, const char *rsc_id)
+{
+    rsc_history_t *entry = NULL;
+
+    entry = g_hash_table_lookup(lrm_state->resource_history, rsc_id);
+    if (entry == NULL || entry->last == NULL) {
+        return FALSE;
+    }
+
+    pcmk__trace("Processing %s: %s.%d=%d", rsc_id, entry->last->op_type,
+                entry->last->interval_ms, entry->last->rc);
+    if ((entry->last->rc == PCMK_OCF_OK)
+        && pcmk__str_eq(entry->last->op_type, PCMK_ACTION_STOP,
+                        pcmk__str_casei)) {
+        return FALSE;
+
+    } else if (entry->last->rc == PCMK_OCF_OK
+               && pcmk__str_eq(entry->last->op_type, PCMK_ACTION_MIGRATE_TO,
+                               pcmk__str_casei)) {
+        // A stricter check is too complex ... leave that to the scheduler
+        return FALSE;
+
+    } else if (entry->last->rc == PCMK_OCF_NOT_RUNNING) {
+        return FALSE;
+
+    } else if ((entry->last->interval_ms == 0)
+               && (entry->last->rc == PCMK_OCF_NOT_CONFIGURED)) {
+        /* Badly configured resources can't be reliably stopped */
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean
+lrm_state_verify_stopped(lrm_state_t * lrm_state, enum crmd_fsa_state cur_state, int log_level)
+{
+    int counter = 0;
+    gboolean rc = TRUE;
+    const char *when = "lrm disconnect";
+
+    GHashTableIter gIter;
+    const char *key = NULL;
+    rsc_history_t *entry = NULL;
+    active_op_t *pending = NULL;
+
+    pcmk__assert(lrm_state != NULL);
+
+    pcmk__debug("Checking for active resources before exit");
+
+    if (cur_state == S_TERMINATE) {
+        log_level = LOG_ERR;
+        when = "shutdown";
+
+    } else if (pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
+        when = "shutdown... waiting";
+    }
+
+    if ((lrm_state->active_ops != NULL)
+        && lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
+
+        unsigned int removed =
+            g_hash_table_foreach_remove(lrm_state->active_ops,
+                                        stop_recurring_actions, lrm_state);
+        unsigned int nremaining = g_hash_table_size(lrm_state->active_ops);
+
+        if (removed || nremaining) {
+            pcmk__notice("Stopped %u recurring operation%s at %s (%u "
+                         "remaining)",
+                         removed, pcmk__plural_s(removed), when, nremaining);
+        }
+    }
+
+    if (lrm_state->active_ops != NULL) {
+        g_hash_table_iter_init(&gIter, lrm_state->active_ops);
+        while (g_hash_table_iter_next(&gIter, NULL, (void **)&pending)) {
+            /* Ignore recurring actions in the shutdown calculations */
+            if (pending->interval_ms == 0) {
+                counter++;
+            }
+        }
+    }
+
+    if (counter > 0) {
+        do_crm_log(log_level, "%d pending executor operation%s at %s",
+                   counter, pcmk__plural_s(counter), when);
+
+        if ((cur_state == S_TERMINATE)
+            || !pcmk__is_set(controld_globals.fsa_input_register,
+                             R_SENT_RSC_STOP)) {
+            g_hash_table_iter_init(&gIter, lrm_state->active_ops);
+            while (g_hash_table_iter_next(&gIter, (void **) &key,
+                                          (void **) &pending)) {
+                do_crm_log(log_level, "Pending action: %s (%s)", key, pending->op_key);
+            }
+
+        } else {
+            rc = FALSE;
+        }
+        return rc;
+    }
+
+    if (lrm_state->resource_history == NULL) {
+        return rc;
+    }
+
+    if (pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
+        /* At this point we're not waiting, we're just shutting down */
+        when = "shutdown";
+    }
+
+    counter = 0;
+    g_hash_table_iter_init(&gIter, lrm_state->resource_history);
+    while (g_hash_table_iter_next(&gIter, NULL, (void **) &entry)) {
+        if (is_rsc_active(lrm_state, entry->id) == FALSE) {
+            continue;
+        }
+
+        counter++;
+        if (log_level == LOG_ERR) {
+            pcmk__info("Found %s active at %s", entry->id, when);
+        } else {
+            pcmk__trace("Found %s active at %s", entry->id, when);
+        }
+        if (lrm_state->active_ops != NULL) {
+            GHashTableIter hIter;
+
+            g_hash_table_iter_init(&hIter, lrm_state->active_ops);
+            while (g_hash_table_iter_next(&hIter, (void **) &key,
+                                          (void **) &pending)) {
+                if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
+                    const bool recurring = (pending->interval_ms != 0);
+
+                    pcmk__notice("%s %s (%s) incomplete at %s",
+                                 (recurring? "Recurring action" : "Action"),
+                                 key, pending->op_key, when);
+                }
+            }
+        }
+    }
+
+    if (counter) {
+        pcmk__err("%d resource%s active at %s",
+                  counter, ((counter == 1)? " was" : "s were"), when);
+    }
+
+    return rc;
+}
+
 void
 controld_execd_state_disconnect(lrm_state_t *lrm_state)
 {

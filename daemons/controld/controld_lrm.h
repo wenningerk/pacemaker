@@ -13,6 +13,8 @@
 #include <stdint.h>                 // UINT32_C
 #include <crm/lrmd.h>               // lrmd_t
 
+#include <glib.h>                   // gboolean, GHashTable, GList
+
 #include <controld_fsa.h>           // fsa_data_t
 #include <controld_messages.h>
 #include <controld_remote_ra.h>     // remote_ra_data_t
@@ -122,6 +124,9 @@ void controld_execd_state_table_init(void);
 void controld_execd_state_table_free(void);
 
 lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
+
+gboolean lrm_state_verify_stopped(lrm_state_t *lrm_state,
+                                  enum crmd_fsa_state cur_state, int log_level);
 
 /*!
  * The functions below are wrappers for the executor API the controller uses.
