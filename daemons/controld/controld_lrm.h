@@ -57,7 +57,7 @@ typedef struct {
     char *rsc_id;
     char *op_type;
     char *op_key;
-    char *user_data;
+    char *transition_key;
     GHashTable *params;
 } active_op_t;
 

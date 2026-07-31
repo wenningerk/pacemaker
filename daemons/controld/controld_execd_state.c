@@ -75,7 +75,7 @@ free_recurring_op(void *data)
     free(op->rsc_id);
     free(op->op_type);
     free(op->op_key);
-    free(op->user_data);
+    free(op->transition_key);
     g_clear_pointer(&op->params, g_hash_table_destroy);
     free(op);
 }
@@ -104,10 +104,10 @@ fail_pending_op(void *key, void *value, void *user_data)
 
     pcmk__trace("Preemptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
                 op->rsc_id, op->op_type, op->interval_ms,
-                lrm_state->node_name, call_key, op->user_data);
+                lrm_state->node_name, call_key, op->transition_key);
 
     event->type = lrmd_event_exec_complete;
-    event->user_data = pcmk__str_copy(op->user_data);
+    event->user_data = pcmk__str_copy(op->transition_key);
     event->call_id = op->call_id;
     event->t_run = op->start_time;
     event->t_rcchange = op->start_time;

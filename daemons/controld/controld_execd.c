@@ -2026,7 +2026,7 @@ do_lrm_rsc_op(lrm_state_t *lrm_state, lrmd_rsc_info_t *rsc, xmlNode *msg,
         pending->op_key = pcmk__str_copy(op_id);
         pending->rsc_id = pcmk__str_copy(rsc->id);
         pending->start_time = time(NULL);
-        pending->user_data = pcmk__str_copy(op->user_data);
+        pending->transition_key = pcmk__str_copy(op->user_data);
         pcmk__xe_get_time(msg, PCMK_OPT_SHUTDOWN_LOCK, &pending->lock_time);
         g_hash_table_replace(lrm_state->active_ops, call_id_s, pending);
 
