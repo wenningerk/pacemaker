@@ -79,7 +79,16 @@ typedef struct {
     remote_ra_data_t *remote_ra_data;   // Reserved for controld_remote_ra.c
 
     GHashTable *resource_history;
-    GHashTable *active_ops;     // Pending and recurring actions
+
+    /*!
+     * Pending and recurring actions.
+     *
+     * Key: Executor call key in <tt><resource_id>:<execd_call_id></tt> format
+     *      (<tt>char *</tt>).
+     * Value: Operation (<tt>active_op_t *</tt>).
+     */
+    GHashTable *active_ops;
+
     GHashTable *deletion_ops;
     GHashTable *rsc_info_cache;
     GHashTable *metadata_cache; // key = class[:provider]:agent, value = ra_metadata_s
