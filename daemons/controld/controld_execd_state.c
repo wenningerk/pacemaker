@@ -403,6 +403,46 @@ log_pending_op(void *key, void *value, void *user_data)
     do_crm_log(log_level, "Pending operation: %s (%s)", call_key, op->op_key);
 }
 
+/*!
+ * \internal
+ * \brief User data for \c log_incomplete_op()
+ */
+struct log_incomplete_op_data {
+    //! Resource ID to match
+    const char *id;
+
+    //! Event that triggered the function call (for logging only)
+    const char *when;
+};
+
+/*!
+ * \internal
+ * \brief Log a given incomplete operation if it matches a given resource ID
+ *
+ * The operation is logged only if its \c rsc_id field matches \p user_data->id.
+ *
+ * \param[in] key        Executor call key (<tt>const char *</tt>)
+ * \param[in] value      Operation (<tt>const active_op_t *</tt>)
+ * \param[in] user_data  User data
+ *                       (<tt>const struct log_incomplete_op_data *</tt>)
+ *
+ * \note This is a \c GHFunc.
+ */
+static void
+log_incomplete_op(void *key, void *value, void *user_data)
+{
+    const char *call_key = key;
+    const active_op_t *op = value;
+    const struct log_incomplete_op_data *data = user_data;
+
+    if (!pcmk__str_eq(data->id, op->rsc_id, pcmk__str_none)) {
+        return;
+    }
+
+    pcmk__notice("Recurring action %s (%s) incomplete at %s", call_key,
+                 op->op_key, data->when);
+}
+
 bool
 lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                          int log_level)
@@ -474,9 +514,10 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
     count = 0;
     g_hash_table_iter_init(&iter, lrm_state->resource_history);
     while (g_hash_table_iter_next(&iter, NULL, (void **) &entry)) {
-        GHashTableIter iter2;
-        const char *call_key = NULL;
-        const active_op_t *pending = NULL;
+        const struct log_incomplete_op_data data = {
+            .id = entry->id,
+            .when = when,
+        };
 
         if (!is_rsc_active(lrm_state, entry->id)) {
             continue;
@@ -490,15 +531,8 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
             pcmk__trace("Found %s active at %s", entry->id, when);
         }
 
-        g_hash_table_iter_init(&iter2, lrm_state->active_ops);
-        while (g_hash_table_iter_next(&iter2, (void **) &call_key,
-                                      (void **) &pending)) {
-
-            if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
-                pcmk__notice("Recurring action %s (%s) incomplete at %s",
-                             call_key, pending->op_key, when);
-            }
-        }
+        g_hash_table_foreach(lrm_state->active_ops, log_incomplete_op,
+                             (void *) &data);
     }
 
     if (count > 0) {
