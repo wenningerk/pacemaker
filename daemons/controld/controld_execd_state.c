@@ -23,21 +23,23 @@ static GHashTable *lrm_state_table = NULL;
 
 /*!
  * \internal
- * \brief Free an \c lrmd_rsc_info_t object
+ * \brief Free a recurring operation
  *
- * This is a wrapper for \c lrmd_free_rsc_info for use with items in a
- * \c GHashTable.
- *
- * \param[in,out] data  Resource info to free (<tt>lrmd_rsc_info_t *</tt>)
+ * \param[in,out] data  Operation to free (<tt>active_op_t *</tt>)
  *
  * \note This is a \c GDestroyNotify.
  */
 static void
-free_rsc_info(void *data)
+free_recurring_op(void *data)
 {
-    lrmd_rsc_info_t *rsc_info = data;
+    active_op_t *op = data;
 
-    lrmd_free_rsc_info(rsc_info);
+    free(op->rsc_id);
+    free(op->op_type);
+    free(op->op_key);
+    free(op->transition_key);
+    g_clear_pointer(&op->params, g_hash_table_destroy);
+    free(op);
 }
 
 /*!
@@ -56,27 +58,6 @@ free_pending_deletion_op(void *data)
 
     free(op->rsc);
     delete_ha_msg_input(op->input);
-    free(op);
-}
-
-/*!
- * \internal
- * \brief Free a recurring operation
- *
- * \param[in,out] data  Operation to free (<tt>active_op_t *</tt>)
- *
- * \note This is a \c GDestroyNotify.
- */
-static void
-free_recurring_op(void *data)
-{
-    active_op_t *op = data;
-
-    free(op->rsc_id);
-    free(op->op_type);
-    free(op->op_key);
-    free(op->transition_key);
-    g_clear_pointer(&op->params, g_hash_table_destroy);
     free(op);
 }
 
@@ -124,32 +105,29 @@ fail_pending_op(void *key, void *value, void *user_data)
 
 /*!
  * \internal
- * \brief Create executor state entry for a node and add it to the state table
+ * \brief Create an executor state object for a node
  *
- * \param[in]  node_name  Node to create entry for
+ * \param[in] node_name  Node name
  *
- * \return Newly allocated executor state object initialized for \p node_name
+ * \return Newly allocated executor state object for node \p node_name
+ *         (guaranteed not to be \c NULL)
+ *
+ * \note The caller is responsible for freeing the return value using
+ *       \c internal_lrm_state_destroy().
  */
 static lrm_state_t *
-lrm_state_create(const char *node_name)
+new_lrm_state(const char *node_name)
 {
-    lrm_state_t *state = NULL;
-
-    if (!node_name) {
-        pcmk__err("No node name given for lrm state object");
-        return NULL;
-    }
-
-    state = pcmk__assert_alloc(1, sizeof(lrm_state_t));
+    lrm_state_t *state = pcmk__assert_alloc(1, sizeof(lrm_state_t));
 
     state->node_name = pcmk__str_copy(node_name);
-    state->rsc_info_cache = pcmk__strkey_table(NULL, free_rsc_info);
-    state->deletion_ops = pcmk__strkey_table(free, free_pending_deletion_op);
-    state->active_ops = pcmk__strkey_table(free, free_recurring_op);
     state->resource_history = pcmk__strkey_table(NULL, history_free);
+    state->active_ops = pcmk__strkey_table(free, free_recurring_op);
+    state->deletion_ops = pcmk__strkey_table(free, free_pending_deletion_op);
+    state->rsc_info_cache =
+        pcmk__strkey_table(NULL, (GDestroyNotify) lrmd_free_rsc_info);
     state->metadata_cache = metadata_cache_new();
 
-    g_hash_table_insert(lrm_state_table, state->node_name, state);
     return state;
 }
 
@@ -241,9 +219,12 @@ controld_get_executor_state(const char *node_name, bool create)
     }
 
     state = g_hash_table_lookup(lrm_state_table, node_name);
+
     if ((state == NULL) && create) {
-        state = lrm_state_create(node_name);
+        state = new_lrm_state(node_name);
+        g_hash_table_insert(lrm_state_table, state->node_name, state);
     }
+
     return state;
 }
 
