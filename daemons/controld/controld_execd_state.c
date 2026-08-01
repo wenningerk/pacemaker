@@ -186,26 +186,21 @@ internal_lrm_state_destroy(void *data)
 void
 lrm_state_reset_tables(lrm_state_t *lrm_state)
 {
-    if (lrm_state->resource_history) {
-        pcmk__trace("Resetting resource history cache with %u members",
-                    g_hash_table_size(lrm_state->resource_history));
-        g_hash_table_remove_all(lrm_state->resource_history);
-    }
-    if (lrm_state->deletion_ops) {
-        pcmk__trace("Resetting deletion operations cache with %u members",
-                    g_hash_table_size(lrm_state->deletion_ops));
-        g_hash_table_remove_all(lrm_state->deletion_ops);
-    }
-    if (lrm_state->active_ops != NULL) {
-        pcmk__trace("Resetting active operations cache with %u members",
-                    g_hash_table_size(lrm_state->active_ops));
-        g_hash_table_remove_all(lrm_state->active_ops);
-    }
-    if (lrm_state->rsc_info_cache) {
-        pcmk__trace("Resetting resource information cache with %u members",
-                    g_hash_table_size(lrm_state->rsc_info_cache));
-        g_hash_table_remove_all(lrm_state->rsc_info_cache);
-    }
+    pcmk__trace("Resetting resource history cache with %u members",
+                g_hash_table_size(lrm_state->resource_history));
+    g_hash_table_remove_all(lrm_state->resource_history);
+
+    pcmk__trace("Resetting deletion operations cache with %u members",
+                g_hash_table_size(lrm_state->deletion_ops));
+    g_hash_table_remove_all(lrm_state->deletion_ops);
+
+    pcmk__trace("Resetting active operations cache with %u members",
+                g_hash_table_size(lrm_state->active_ops));
+    g_hash_table_remove_all(lrm_state->active_ops);
+
+    pcmk__trace("Resetting resource information cache with %u members",
+                g_hash_table_size(lrm_state->rsc_info_cache));
+    g_hash_table_remove_all(lrm_state->rsc_info_cache);
 }
 
 void
@@ -430,9 +425,7 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
         when = "shutdown... waiting";
     }
 
-    if ((lrm_state->active_ops != NULL)
-        && (g_hash_table_size(lrm_state->active_ops) > 0)) {
-
+    if (g_hash_table_size(lrm_state->active_ops) > 0) {
         unsigned int size = g_hash_table_size(lrm_state->active_ops);
         unsigned int removed = 0;
 
@@ -473,10 +466,6 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
 
     // There are no non-recurring actions in lrm_state->active_ops
 
-    if (lrm_state->resource_history == NULL) {
-        return true;
-    }
-
     if (pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
         /* At this point we're not waiting, we're just shutting down */
         when = "shutdown";
@@ -485,6 +474,10 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
     count = 0;
     g_hash_table_iter_init(&iter, lrm_state->resource_history);
     while (g_hash_table_iter_next(&iter, NULL, (void **) &entry)) {
+        GHashTableIter iter2;
+        const char *call_key = NULL;
+        const active_op_t *pending = NULL;
+
         if (!is_rsc_active(lrm_state, entry->id)) {
             continue;
         }
@@ -497,19 +490,13 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
             pcmk__trace("Found %s active at %s", entry->id, when);
         }
 
-        if (lrm_state->active_ops != NULL) {
-            GHashTableIter iter2;
-            const char *call_key = NULL;
-            const active_op_t *pending = NULL;
+        g_hash_table_iter_init(&iter2, lrm_state->active_ops);
+        while (g_hash_table_iter_next(&iter2, (void **) &call_key,
+                                      (void **) &pending)) {
 
-            g_hash_table_iter_init(&iter2, lrm_state->active_ops);
-            while (g_hash_table_iter_next(&iter2, (void **) &call_key,
-                                          (void **) &pending)) {
-
-                if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
-                    pcmk__notice("Recurring action %s (%s) incomplete at %s",
-                                 call_key, pending->op_key, when);
-                }
+            if (pcmk__str_eq(entry->id, pending->rsc_id, pcmk__str_none)) {
+                pcmk__notice("Recurring action %s (%s) incomplete at %s",
+                             call_key, pending->op_key, when);
             }
         }
     }

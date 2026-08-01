@@ -80,6 +80,12 @@ typedef struct {
     lrmd_t *conn;                       // Reserved for controld_execd_state.c
     remote_ra_data_t *remote_ra_data;   // Reserved for controld_remote_ra.c
 
+    /* All of these hash tables should be allocated when the lrm_state_t object
+     * is allocated, and they should be freed only when the lrm_state_t object
+     * is freed. Thus they should be non-NULL for the lifetime of the
+     * lrm_state_t object.
+     */
+
     GHashTable *resource_history;
 
     /*!

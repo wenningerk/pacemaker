@@ -631,17 +631,16 @@ lrm_clear_last_failure(const char *rsc_id, const char *node_name,
                        const char *operation, unsigned int interval_ms)
 {
     lrm_state_t *lrm_state = controld_get_executor_state(node_name, false);
+    rsc_history_t *entry = NULL;
 
     if (lrm_state == NULL) {
         return;
     }
-    if (lrm_state->resource_history != NULL) {
-        rsc_history_t *entry = g_hash_table_lookup(lrm_state->resource_history,
-                                                   rsc_id);
 
-        if (last_failed_matches_op(entry, operation, interval_ms)) {
-            g_clear_pointer(&entry->failed, lrmd_free_event);
-        }
+    entry = g_hash_table_lookup(lrm_state->resource_history, rsc_id);
+
+    if (last_failed_matches_op(entry, operation, interval_ms)) {
+        g_clear_pointer(&entry->failed, lrmd_free_event);
     }
 }
 
@@ -1152,9 +1151,7 @@ static bool do_lrm_cancel(ha_msg_input_t *input, lrm_state_t *lrm_state,
                          from_host, from_sys);
 
         /* needed at least for cancellation of a remote operation */
-        if (lrm_state->active_ops != NULL) {
-            g_hash_table_remove(lrm_state->active_ops, op_id);
-        }
+        g_hash_table_remove(lrm_state->active_ops, op_id);
         free(op_id);
     }
 
