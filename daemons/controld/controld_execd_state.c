@@ -443,15 +443,76 @@ log_incomplete_op(void *key, void *value, void *user_data)
                  op->op_key, data->when);
 }
 
+/*!
+ * \internal
+ * \brief User data for \c count_active_resource_data()
+ */
+struct count_active_resource_data {
+    //! Executor state
+    const lrm_state_t *lrm_state;
+
+    //! Log level
+    int log_level;
+
+    //! Event that triggered the function call (for logging only)
+    const char *when;
+
+    //! Counter
+    unsigned int count;
+};
+
+/*!
+ * \internal
+ * \brief Increment a counter if a given resource is active
+ *
+ * Also log the resource's incomplete operations.
+ *
+ * \param[in]     key        Ignored
+ * \param[in]     value      Resource history entry
+ *                           (<tt>const rsc_history_entry_t *</tt>)
+ * \param[in,out] user_data  User data
+ *                           (<tt>struct count_active_resource_data *</tt>)
+ *
+ * \note This is a \c GHFunc.
+ */
+static void
+count_active_resource(void *key, void *value, void *user_data)
+{
+    const rsc_history_t *entry = value;
+    struct count_active_resource_data *data = user_data;
+
+    const struct log_incomplete_op_data lio_data = {
+        .id = entry->id,
+        .when = data->when,
+    };
+
+    if (!is_rsc_active(data->lrm_state, entry->id)) {
+        return;
+    }
+
+    data->count++;
+
+    if (data->log_level == LOG_ERR) {
+        pcmk__info("Found %s active at %s", entry->id, data->when);
+
+    } else {
+        pcmk__trace("Found %s active at %s", entry->id, data->when);
+    }
+
+    g_hash_table_foreach(data->lrm_state->active_ops, log_incomplete_op,
+                         (void *) &lio_data);
+}
+
 bool
 lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                          int log_level)
 {
     unsigned int count = 0;
     const char *when = "lrm disconnect";
-
-    GHashTableIter iter;
-    const rsc_history_t *entry = NULL;
+    struct count_active_resource_data data = {
+        .lrm_state = lrm_state,
+        .log_level = log_level,
+    };
 
     pcmk__assert(lrm_state != NULL);
 
@@ -511,33 +572,13 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
         when = "shutdown";
     }
 
-    count = 0;
-    g_hash_table_iter_init(&iter, lrm_state->resource_history);
-    while (g_hash_table_iter_next(&iter, NULL, (void **) &entry)) {
-        const struct log_incomplete_op_data data = {
-            .id = entry->id,
-            .when = when,
-        };
+    data.when = when;
+    g_hash_table_foreach(lrm_state->resource_history, count_active_resource,
+                         &data);
 
-        if (!is_rsc_active(lrm_state, entry->id)) {
-            continue;
-        }
-
-        count++;
-        if (log_level == LOG_ERR) {
-            pcmk__info("Found %s active at %s", entry->id, when);
-
-        } else {
-            pcmk__trace("Found %s active at %s", entry->id, when);
-        }
-
-        g_hash_table_foreach(lrm_state->active_ops, log_incomplete_op,
-                             (void *) &data);
-    }
-
-    if (count > 0) {
-        pcmk__err("%u resource%s active at %s", count,
-                  pcmk__plural_alt(count, " was", "s were"), when);
+    if (data.count > 0) {
+        pcmk__err("%u resource%s active at %s", data.count,
+                  pcmk__plural_alt(data.count, " was", "s were"), when);
     }
 
     return true;
