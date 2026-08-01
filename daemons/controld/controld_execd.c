@@ -362,6 +362,12 @@ do_lrm_control(long long action, enum crmd_fsa_cause cause,
         if (!lrm_state_verify_stopped(lrm_state, cur_state, LOG_INFO)
             && (action == A_LRM_DISCONNECT)) {
 
+            /* There are pending, non-recurring operations, cur_state is not
+             * S_TERMINATE, R_SENT_RSC_STOP is set, and we're not going to
+             * reconnect.
+             *
+             * @TODO Why do we stall here?
+             */
             controld_fsa_stall(msg_data, action);
             return;
         }

@@ -503,6 +503,7 @@ count_active_resource(void *key, void *value, void *user_data)
                          (void *) &lio_data);
 }
 
+// @TODO Understand this function better and then add Doxygen
 bool
 lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
                          int log_level)
