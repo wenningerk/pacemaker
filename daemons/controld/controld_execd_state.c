@@ -34,6 +34,10 @@ free_recurring_op(void *data)
 {
     active_op_t *op = data;
 
+    if (op == NULL) {
+        return;
+    }
+
     free(op->rsc_id);
     free(op->op_type);
     free(op->op_key);
@@ -55,6 +59,10 @@ static void
 free_pending_deletion_op(void *data)
 {
     struct pending_deletion_op_s *op = data;
+
+    if (op == NULL) {
+        return;
+    }
 
     free(op->rsc);
     delete_ha_msg_input(op->input);
@@ -80,13 +88,15 @@ fail_pending_op(void *key, void *value, void *user_data)
     active_op_t *op = value;
     lrm_state_t *lrm_state = user_data;
 
-    lrmd_event_data_t *event = lrmd_new_event(op->rsc_id, op->op_type,
-                                              op->interval_ms);
+    lrmd_event_data_t *event = NULL;
+
+    pcmk__assert((call_key != NULL) && (op != NULL) && (lrm_state != NULL));
 
     pcmk__trace("Preemptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
                 op->rsc_id, op->op_type, op->interval_ms,
                 lrm_state->node_name, call_key, op->transition_key);
 
+    event = lrmd_new_event(op->rsc_id, op->op_type, op->interval_ms);
     event->type = lrmd_event_exec_complete;
     event->user_data = pcmk__str_copy(op->transition_key);
     event->call_id = op->call_id;
@@ -136,7 +146,7 @@ internal_lrm_state_destroy(void *data)
 {
     lrm_state_t *lrm_state = data;
 
-    if (!lrm_state) {
+    if (lrm_state == NULL) {
         return;
     }
 
@@ -164,6 +174,8 @@ internal_lrm_state_destroy(void *data)
 void
 lrm_state_reset_tables(lrm_state_t *lrm_state)
 {
+    pcmk__assert(lrm_state != NULL);
+
     pcmk__trace("Resetting resource history cache with %u members",
                 g_hash_table_size(lrm_state->resource_history));
     g_hash_table_remove_all(lrm_state->resource_history);
@@ -260,6 +272,8 @@ cancel_recurring_op(void *key, void *value, void *user_data)
     const char *call_key = key;
     const active_op_t *op = value;
     lrm_state_t *lrm_state = user_data;
+
+    pcmk__assert((call_key != NULL) && (op != NULL) && (lrm_state != NULL));
 
     if (op->interval_ms == 0) {
         return false;
@@ -359,6 +373,8 @@ count_non_recurring_op(void *key, void *value, void *user_data)
     const active_op_t *op = value;
     unsigned int *count = user_data;
 
+    pcmk__assert((op != NULL) && (count != NULL));
+
     if (op->interval_ms == 0) {
         (*count)++;
     }
@@ -380,6 +396,8 @@ log_pending_op(void *key, void *value, void *user_data)
     const char *call_key = key;
     const active_op_t *op = value;
     int log_level = GPOINTER_TO_INT(user_data);
+
+    pcmk__assert((call_key != NULL) && (op != NULL));
 
     do_crm_log(log_level, "Pending operation: %s (%s)", call_key, op->op_key);
 }
@@ -415,6 +433,8 @@ log_incomplete_op(void *key, void *value, void *user_data)
     const char *call_key = key;
     const active_op_t *op = value;
     const struct log_incomplete_op_data *data = user_data;
+
+    pcmk__assert((call_key != NULL) && (op != NULL) && (data != NULL));
 
     if (!pcmk__str_eq(data->id, op->rsc_id, pcmk__str_none)) {
         return;
@@ -466,6 +486,8 @@ count_active_resource(void *key, void *value, void *user_data)
         .id = entry->id,
         .when = data->when,
     };
+
+    pcmk__assert((entry != NULL) && (data != NULL));
 
     if (!is_rsc_active(data->lrm_state, entry->id)) {
         return;
@@ -571,6 +593,8 @@ controld_execd_state_disconnect(lrm_state_t *lrm_state)
 {
     unsigned int removed = 0;
 
+    pcmk__assert(lrm_state != NULL);
+
     if (!lrm_state->conn) {
         return;
     }
@@ -594,6 +618,8 @@ controld_connect_local_executor(lrm_state_t *lrm_state)
 {
     int rc = pcmk_rc_ok;
 
+    pcmk__assert(lrm_state != NULL);
+
     if (lrm_state->conn == NULL) {
         lrm_state->conn = lrmd_api_new();
         lrm_state->conn->cmds->set_callback(lrm_state->conn, lrm_op_callback);
@@ -616,6 +642,8 @@ controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
                                  int port, int timeout_ms)
 {
     int rc = pcmk_rc_ok;
+
+    pcmk__assert(lrm_state != NULL);
 
     if (lrm_state->conn == NULL) {
         lrm_state->conn = lrmd_remote_api_new(lrm_state->node_name, server,
@@ -645,6 +673,8 @@ lrm_state_get_metadata(lrm_state_t * lrm_state,
                        const char *agent, char **output, enum lrmd_call_options options)
 {
     lrmd_key_value_t *params = NULL;
+
+    pcmk__assert(lrm_state != NULL);
 
     if (!lrm_state->conn) {
         return -ENOTCONN;
@@ -676,6 +706,8 @@ int
 lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id, const char *action,
                  unsigned int interval_ms)
 {
+    pcmk__assert(lrm_state != NULL);
+
     if (!lrm_state->conn) {
         return -ENOTCONN;
     }
@@ -695,6 +727,8 @@ lrmd_rsc_info_t *
 lrm_state_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id, enum lrmd_call_options options)
 {
     lrmd_rsc_info_t *rsc = NULL;
+
+    pcmk__assert(lrm_state != NULL);
 
     if (!lrm_state->conn) {
         return NULL;
@@ -745,6 +779,8 @@ controld_execute_resource_agent(lrm_state_t *lrm_state, const char *rsc_id,
     int rc = pcmk_rc_ok;
     lrmd_key_value_t *params = NULL;
 
+    pcmk__assert((lrm_state != NULL) && (call_id != NULL));
+
     if (lrm_state->conn == NULL) {
         return ENOTCONN;
     }
@@ -787,6 +823,8 @@ lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
                        const char *class, const char *provider,
                        const char *agent, enum lrmd_call_options options)
 {
+    pcmk__assert(lrm_state != NULL);
+
     if (lrm_state->conn == NULL) {
         return -ENOTCONN;
     }
@@ -806,6 +844,8 @@ int
 lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id,
                          enum lrmd_call_options options)
 {
+    pcmk__assert(lrm_state != NULL);
+
     if (lrm_state->conn == NULL) {
         return -ENOTCONN;
     }
