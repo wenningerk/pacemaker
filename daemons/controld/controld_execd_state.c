@@ -149,7 +149,7 @@ lrm_state_create(const char *node_name)
     state->resource_history = pcmk__strkey_table(NULL, history_free);
     state->metadata_cache = metadata_cache_new();
 
-    g_hash_table_insert(lrm_state_table, (char *)state->node_name, state);
+    g_hash_table_insert(lrm_state_table, state->node_name, state);
     return state;
 }
 
@@ -179,7 +179,7 @@ internal_lrm_state_destroy(void *data)
 
     metadata_cache_free(lrm_state->metadata_cache);
 
-    free((char *)lrm_state->node_name);
+    free(lrm_state->node_name);
     free(lrm_state);
 }
 

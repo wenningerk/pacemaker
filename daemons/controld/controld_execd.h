@@ -76,7 +76,7 @@ typedef struct {
     } while (0)
 
 typedef struct {
-    const char *node_name;
+    char *node_name;
     lrmd_t *conn;                       // Reserved for controld_execd_state.c
     remote_ra_data_t *remote_ra_data;   // Reserved for controld_remote_ra.c
 
