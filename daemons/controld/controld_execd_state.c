@@ -236,32 +236,34 @@ controld_execd_state_table_free(void)
 
 /*!
  * \internal
- * \brief Get executor state object
+ * \brief Get executor state object for a given node
  *
- * \param[in] node_name  Get executor state for this node (local node if NULL)
- * \param[in] create     If true, create executor state if it doesn't exist
+ * \param[in] node_name  Node name (\c NULL for local node name)
+ * \param[in] create     If \c true, create executor state if it doesn't exist
  *
- * \return Executor state object for \p node_name
+ * \return Executor state object for \p node_name, or \c NULL if the object
+ *         doesn't exist and \p create is \c false
  */
 lrm_state_t *
-controld_get_executor_state(const char *node_name, bool create)
+controld_execd_state_get(const char *node_name, bool create)
 {
     lrm_state_t *state = NULL;
 
     if ((node_name == NULL) && (controld_globals.cluster != NULL)) {
         node_name = controld_globals.cluster->priv->node_name;
     }
+
     if ((node_name == NULL) || (lrm_state_table == NULL)) {
         return NULL;
     }
 
     state = g_hash_table_lookup(lrm_state_table, node_name);
-
-    if ((state == NULL) && create) {
-        state = new_lrm_state(node_name);
-        g_hash_table_insert(lrm_state_table, state->node_name, state);
+    if ((state != NULL) || !create) {
+        return state;
     }
 
+    state = new_lrm_state(node_name);
+    g_hash_table_insert(lrm_state_table, state->node_name, state);
     return state;
 }
 
@@ -855,7 +857,7 @@ lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
     }
 
     if (is_remote_lrmd_ra(agent, provider, NULL)) {
-        return controld_get_executor_state(rsc_id, true)? pcmk_ok : -EINVAL;
+        return controld_execd_state_get(rsc_id, true)? pcmk_ok : -EINVAL;
     }
 
     /* @TODO Implement an asynchronous version of this (currently a blocking

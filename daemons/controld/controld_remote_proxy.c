@@ -227,7 +227,7 @@ controld_remote_proxy_send(const char *session, xmlNode *msg)
         return ENXIO;
     }
 
-    if (controld_get_executor_state(proxy->node_name, false) == NULL) {
+    if (controld_execd_state_get(proxy->node_name, false) == NULL) {
         return pcmk_rc_ok;
     }
 

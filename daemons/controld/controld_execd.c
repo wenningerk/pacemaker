@@ -288,7 +288,7 @@ lrm_op_callback(lrmd_event_data_t * op)
         case lrmd_event_exec_complete:
             {
                 lrm_state_t *lrm_state =
-                    controld_get_executor_state(op_node_name(op), false);
+                    controld_execd_state_get(op_node_name(op), false);
 
                 pcmk__assert(lrm_state != NULL);
                 process_lrm_event(lrm_state, op, NULL, NULL);
@@ -352,7 +352,7 @@ do_lrm_control(long long action, enum crmd_fsa_cause cause,
         return; // Shouldn't be possible
     }
 
-    lrm_state = controld_get_executor_state(NULL, true);
+    lrm_state = controld_execd_state_get(NULL, true);
     if (lrm_state == NULL) {
         register_fsa_error(I_ERROR, msg_data);
         return;
@@ -439,7 +439,7 @@ controld_query_executor_state(void)
     xmlNode *xml_data = NULL;
     xmlNode *rsc_list = NULL;
     pcmk__node_status_t *peer = NULL;
-    lrm_state_t *lrm_state = controld_get_executor_state(NULL, false);
+    lrm_state_t *lrm_state = controld_execd_state_get(NULL, false);
 
     if (!lrm_state) {
         pcmk__err("Could not get executor state for local node");
@@ -636,7 +636,7 @@ void
 lrm_clear_last_failure(const char *rsc_id, const char *node_name,
                        const char *operation, unsigned int interval_ms)
 {
-    lrm_state_t *lrm_state = controld_get_executor_state(node_name, false);
+    lrm_state_t *lrm_state = controld_execd_state_get(node_name, false);
     rsc_history_t *entry = NULL;
 
     if (lrm_state == NULL) {
@@ -918,7 +918,7 @@ force_reprobe(lrm_state_t *lrm_state, const char *from_sys,
 
             if (reprobe_all_nodes) {
                 lrm_state_t *remote_lrm_state =
-                    controld_get_executor_state(entry->id, false);
+                    controld_execd_state_get(entry->id, false);
 
                 if (remote_lrm_state != NULL) {
                     /* If reprobing all nodes, be sure to reprobe the remote
@@ -1237,7 +1237,7 @@ metadata_complete(int pid, const pcmk__action_result_t *result, void *user_data)
 
     struct ra_metadata_s *md = NULL;
     lrm_state_t *lrm_state =
-        controld_get_executor_state(lrm_op_target(data->input_xml), false);
+        controld_execd_state_get(lrm_op_target(data->input_xml), false);
 
     if ((lrm_state != NULL) && pcmk__result_ok(result)) {
         md = controld_cache_metadata(lrm_state->metadata_cache, data->rsc,
@@ -1271,7 +1271,7 @@ controld_invoke_execd(fsa_data_t *msg_data)
     // Message routed to the local node is targeting a specific, non-local node
     is_remote_node = !controld_is_local_node(target_node);
 
-    lrm_state = controld_get_executor_state(target_node, false);
+    lrm_state = controld_execd_state_get(target_node, false);
     if ((lrm_state == NULL) && is_remote_node) {
         pcmk__err("Failing action because local node has never had connection "
                   "to remote node %s",

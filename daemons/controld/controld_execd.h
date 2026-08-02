@@ -115,7 +115,7 @@ GList *lrm_state_get_list(void);
 void controld_execd_state_table_init(void);
 void controld_execd_state_table_free(void);
 
-lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
+lrm_state_t *controld_execd_state_get(const char *node_name, bool create);
 
 bool lrm_state_verify_stopped(lrm_state_t *lrm_state,
                               enum crmd_fsa_state cur_state, int log_level);

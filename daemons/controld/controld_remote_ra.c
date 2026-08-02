@@ -130,7 +130,7 @@ recurring_helper(void *data)
     lrm_state_t *connection_rsc = NULL;
 
     cmd->interval_id = 0;
-    connection_rsc = controld_get_executor_state(cmd->rsc_id, false);
+    connection_rsc = controld_execd_state_get(cmd->rsc_id, false);
     if (connection_rsc && connection_rsc->remote_ra_data) {
         remote_ra_data_t *ra_data = connection_rsc->remote_ra_data;
 
@@ -149,7 +149,7 @@ start_delay_helper(void *data)
     lrm_state_t *connection_rsc = NULL;
 
     cmd->delay_id = 0;
-    connection_rsc = controld_get_executor_state(cmd->rsc_id, false);
+    connection_rsc = controld_execd_state_get(cmd->rsc_id, false);
     if (connection_rsc && connection_rsc->remote_ra_data) {
         remote_ra_data_t *ra_data = connection_rsc->remote_ra_data;
 
@@ -181,7 +181,7 @@ should_purge_attributes(pcmk__node_status_t *node)
      * enough, set purge=true.  "Long enough" means it started running earlier
      * than the timestamp when we noticed it went away in the first place.
      */
-    connection_rsc = controld_get_executor_state(node->name, false);
+    connection_rsc = controld_execd_state_get(node->name, false);
 
     if (connection_rsc != NULL) {
         time_t uptime = lrmd__uptime(connection_rsc->conn);
@@ -254,7 +254,7 @@ remote_node_up(const char *node_name)
     /* Apply any start state that we were given from the environment on the
      * remote node.
      */
-    connection_rsc = controld_get_executor_state(node->name, false);
+    connection_rsc = controld_execd_state_get(node->name, false);
 
     if (connection_rsc != NULL) {
         const char *start_state = lrmd__node_start_state(connection_rsc->conn);
@@ -367,8 +367,7 @@ check_remote_node_state(const remote_ra_cmd_t *cmd)
         pcmk__update_peer_state(__func__, node, PCMK_VALUE_MEMBER, 0);
 
     } else if (pcmk__str_eq(cmd->action, PCMK_ACTION_STOP, pcmk__str_casei)) {
-        lrm_state_t *lrm_state = controld_get_executor_state(cmd->rsc_id,
-                                                             false);
+        lrm_state_t *lrm_state = controld_execd_state_get(cmd->rsc_id, false);
         remote_ra_data_t *ra_data = lrm_state? lrm_state->remote_ra_data : NULL;
 
         if (ra_data) {
@@ -512,7 +511,7 @@ connection_takeover_timeout_cb(void *data)
     pcmk__info("takeover event timed out for node %s", cmd->rsc_id);
     cmd->takeover_timeout_id = 0;
 
-    lrm_state = controld_get_executor_state(cmd->rsc_id, false);
+    lrm_state = controld_execd_state_get(cmd->rsc_id, false);
 
     handle_remote_ra_stop(lrm_state, cmd);
     free_cmd(cmd);
@@ -526,7 +525,7 @@ monitor_timeout_cb(void *data)
     lrm_state_t *lrm_state = NULL;
     remote_ra_cmd_t *cmd = data;
 
-    lrm_state = controld_get_executor_state(cmd->rsc_id, false);
+    lrm_state = controld_execd_state_get(cmd->rsc_id, false);
 
     pcmk__info("Timed out waiting for remote poke response from %s%s",
                cmd->rsc_id, ((lrm_state != NULL)? "" : " (no LRM state)"));
@@ -563,7 +562,7 @@ synthesize_lrmd_success(lrm_state_t *lrm_state, const char *rsc_id, const char *
 
     if (lrm_state == NULL) {
         /* if lrm_state not given assume local */
-        lrm_state = controld_get_executor_state(NULL, false);
+        lrm_state = controld_execd_state_get(NULL, false);
     }
     pcmk__assert(lrm_state != NULL);
 
@@ -593,7 +592,7 @@ remote_lrm_op_callback(lrmd_event_data_t * op)
                 crm_exit_str((crm_exit_t) op->rc), op->rc,
                 pcmk_exec_status_str(op->op_status), op->op_status);
 
-    lrm_state = controld_get_executor_state(op->remote_nodename, false);
+    lrm_state = controld_execd_state_get(op->remote_nodename, false);
     if (!lrm_state || !lrm_state->remote_ra_data) {
         pcmk__debug("No state information found for remote connection event");
         return;
@@ -976,7 +975,7 @@ is_remote_lrmd_ra(const char *agent, const char *provider, const char *id)
     if (agent && provider && !strcmp(agent, REMOTE_LRMD_RA) && !strcmp(provider, "pacemaker")) {
         return TRUE;
     }
-    return (id != NULL) && (controld_get_executor_state(id, false) != NULL)
+    return (id != NULL) && (controld_execd_state_get(id, false) != NULL)
            && !controld_is_local_node(id);
 }
 
@@ -987,7 +986,7 @@ remote_ra_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id)
 
     CRM_CHECK(rsc_id != NULL, return NULL);
 
-    if (controld_get_executor_state(rsc_id, false) != NULL) {
+    if (controld_execd_state_get(rsc_id, false) != NULL) {
         info = pcmk__assert_alloc(1, sizeof(lrmd_rsc_info_t));
 
         info->id = pcmk__str_copy(rsc_id);
@@ -1077,7 +1076,7 @@ remote_ra_cancel(lrm_state_t *lrm_state, const char *rsc_id,
 
     CRM_CHECK(rsc_id != NULL, return -EINVAL);
 
-    connection_rsc = controld_get_executor_state(rsc_id, false);
+    connection_rsc = controld_execd_state_get(rsc_id, false);
     if (!connection_rsc || !connection_rsc->remote_ra_data) {
         return -EINVAL;
     }
@@ -1213,7 +1212,7 @@ controld_execute_remote_agent(const lrm_state_t *lrm_state, const char *rsc_id,
         return EOPNOTSUPP;
     }
 
-    connection_rsc = controld_get_executor_state(rsc_id, false);
+    connection_rsc = controld_execd_state_get(rsc_id, false);
     if (connection_rsc == NULL) {
         lrmd_key_value_freeall(params);
         return ENOTCONN;
@@ -1268,7 +1267,7 @@ remote_ra_fail(const char *node_name)
 
     CRM_CHECK(node_name != NULL, return);
 
-    lrm_state = controld_get_executor_state(node_name, false);
+    lrm_state = controld_execd_state_get(node_name, false);
 
     if ((lrm_state == NULL) || (lrm_state->conn == NULL)
         || !lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
@@ -1389,7 +1388,7 @@ remote_ra_process_maintenance_nodes(xmlNode *xml)
             continue;
         }
 
-        lrm_state = controld_get_executor_state(id, false);
+        lrm_state = controld_execd_state_get(id, false);
 
         if ((lrm_state != NULL) && (lrm_state->remote_ra_data != NULL)
             && pcmk__is_set(lrm_state->remote_ra_data->status, remote_active)) {
