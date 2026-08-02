@@ -777,11 +777,12 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
 {
     const char *id = pcmk__xe_id(rsc_xml);
 
-    CRM_CHECK(lrm_state && rsc_xml && rsc_info, return -EINVAL);
-    CRM_CHECK(id, return -EINVAL);
+    CRM_CHECK((lrm_state != NULL) && (rsc_xml != NULL) && (rsc_info != NULL)
+              && (id != NULL),
+              return EINVAL);
 
     if (!lrm_state->conn->cmds->is_connected(lrm_state->conn)) {
-        return -ENOTCONN;
+        return ENOTCONN;
     }
 
     pcmk__trace("Retrieving resource information for %s from the executor",
@@ -801,14 +802,17 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
         const char *class = pcmk__xe_get(rsc_xml, PCMK_XA_CLASS);
         const char *provider = pcmk__xe_get(rsc_xml, PCMK_XA_PROVIDER);
         const char *type = pcmk__xe_get(rsc_xml, PCMK_XA_TYPE);
-        int rc;
+        int rc = pcmk_rc_ok;
 
         pcmk__trace("Registering resource %s with the executor", id);
+
         rc = lrm_state_register_rsc(lrm_state, id, class, provider, type);
-        if (rc != pcmk_ok) {
+        rc = pcmk_legacy2rc(rc);
+
+        if (rc != pcmk_rc_ok) {
             pcmk__err("Could not register resource %s with the executor on %s: "
                       "%s " QB_XS " rc=%d",
-                      id, lrm_state->node_name, pcmk_strerror(rc), rc);
+                      id, lrm_state->node_name, pcmk_rc_str(rc), rc);
 
             /* Register this as an internal error if this involves the local
              * executor. Otherwise, we're likely dealing with an unresponsive
@@ -817,12 +821,14 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
             if (controld_is_local_node(lrm_state->node_name)) {
                 register_fsa_error(I_FAIL, NULL);
             }
+
             return rc;
         }
 
         *rsc_info = controld_execd_state_get_rsc_info(lrm_state, id);
     }
-    return *rsc_info? pcmk_ok : -ENODEV;
+
+    return (*rsc_info != NULL)? pcmk_rc_ok : ENODEV;
 }
 
 static void
@@ -1056,7 +1062,7 @@ fail_lrm_resource(xmlNode *xml, lrm_state_t *lrm_state, const char *user_name,
     }
 
 
-    if (get_lrm_resource(lrm_state, xml_rsc, TRUE, &rsc) == pcmk_ok) {
+    if (get_lrm_resource(lrm_state, xml_rsc, TRUE, &rsc) == pcmk_rc_ok) {
         pcmk__info("Failing resource %s...", rsc->id);
         fake_op_status(lrm_state, op, PCMK_EXEC_DONE, PCMK_OCF_UNKNOWN_ERROR,
                        "Simulated failure");
@@ -1333,26 +1339,28 @@ controld_invoke_execd(fsa_data_t *msg_data)
         CRM_CHECK((xml_rsc != NULL) && (pcmk__xe_id(xml_rsc) != NULL), return);
 
         rc = get_lrm_resource(lrm_state, xml_rsc, create_rsc, &rsc);
-        if (rc == -ENOTCONN) {
+        if (rc == ENOTCONN) {
             synthesize_lrmd_failure(lrm_state, input->xml,
                                     PCMK_EXEC_NOT_CONNECTED,
                                     PCMK_OCF_UNKNOWN_ERROR,
                                     "Not connected to remote executor");
             return;
+        }
 
-        } else if ((rc < 0) && !create_rsc) {
+        if ((rc != pcmk_rc_ok) && !create_rsc) {
             /* Delete of malformed or nonexistent resource
              * (deleting something that does not exist is a success)
              */
             pcmk__debug("Not registering resource '%s' for a %s event "
                         QB_XS " get-rc=%d (%s) transition-key=%s",
-                        pcmk__xe_id(xml_rsc), operation, rc, pcmk_strerror(rc),
+                        pcmk__xe_id(xml_rsc), operation, rc, pcmk_rc_str(rc),
                         pcmk__xe_id(input->xml));
             delete_rsc_entry(lrm_state, input, pcmk__xe_id(xml_rsc), NULL,
                              pcmk_ok, user_name, true);
             return;
+        }
 
-        } else if (rc == -EINVAL) {
+        if (rc == EINVAL) {
             // Resource operation on malformed resource
             pcmk__err("Invalid resource definition for %s",
                       pcmk__xe_id(xml_rsc));
@@ -1361,12 +1369,13 @@ controld_invoke_execd(fsa_data_t *msg_data)
                                     PCMK_OCF_NOT_CONFIGURED, // fatal error
                                     "Invalid resource definition");
             return;
+        }
 
-        } else if (rc < 0) {
+        if (rc != pcmk_rc_ok) {
             // Error communicating with the executor
             pcmk__err("Could not register resource '%s' with executor: %s "
                       QB_XS " rc=%d",
-                      pcmk__xe_id(xml_rsc), pcmk_strerror(rc), rc);
+                      pcmk__xe_id(xml_rsc), pcmk_rc_str(rc), rc);
             pcmk__log_xml_warn(input->msg, "failed registration");
             synthesize_lrmd_failure(lrm_state, input->xml, PCMK_EXEC_ERROR,
                                     PCMK_OCF_INVALID_PARAM, // hard error
