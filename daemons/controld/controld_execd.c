@@ -377,7 +377,7 @@ do_lrm_control(long long action, enum crmd_fsa_cause cause,
         controld_execd_state_disconnect(lrm_state);
         g_clear_pointer(&lrm_state->conn, lrmd_api_delete);
 
-        lrm_state_reset_tables(lrm_state);
+        controld_execd_state_reset_tables(lrm_state);
     }
 
     if (pcmk__is_set(action, A_LRM_CONNECT)) {

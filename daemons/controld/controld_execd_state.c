@@ -179,8 +179,17 @@ free_lrm_state(void *data)
     free(lrm_state);
 }
 
+/*!
+ * \internal
+ * \brief Remove all entries from an executor state object's non-metadata tables
+ *
+ * This removes all entries from the object's \c resource_history,
+ * \c active_ops, \c deletion_ops, and \c rsc_info_cache hash tables.
+ *
+ * \param[in,out] lrm_state  Executor state
+ */
 void
-lrm_state_reset_tables(lrm_state_t *lrm_state)
+controld_execd_state_reset_tables(lrm_state_t *lrm_state)
 {
     pcmk__assert(lrm_state != NULL);
 
@@ -188,13 +197,13 @@ lrm_state_reset_tables(lrm_state_t *lrm_state)
                 g_hash_table_size(lrm_state->resource_history));
     g_hash_table_remove_all(lrm_state->resource_history);
 
-    pcmk__trace("Resetting deletion operations cache with %u members",
-                g_hash_table_size(lrm_state->deletion_ops));
-    g_hash_table_remove_all(lrm_state->deletion_ops);
-
     pcmk__trace("Resetting active operations cache with %u members",
                 g_hash_table_size(lrm_state->active_ops));
     g_hash_table_remove_all(lrm_state->active_ops);
+
+    pcmk__trace("Resetting deletion operations cache with %u members",
+                g_hash_table_size(lrm_state->deletion_ops));
+    g_hash_table_remove_all(lrm_state->deletion_ops);
 
     pcmk__trace("Resetting resource information cache with %u members",
                 g_hash_table_size(lrm_state->rsc_info_cache));

@@ -109,12 +109,7 @@ struct pending_deletion_op_s {
     ha_msg_input_t *input;
 };
 
-/*!
- * \brief Clear all state information from a single state entry.
- * \note It sometimes useful to save metadata cache when it won't go stale.
- * \note This does not close the executor connection
- */
-void lrm_state_reset_tables(lrm_state_t *lrm_state);
+void controld_execd_state_reset_tables(lrm_state_t *lrm_state);
 GList *lrm_state_get_list(void);
 
 /*!

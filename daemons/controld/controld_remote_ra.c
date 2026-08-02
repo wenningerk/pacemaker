@@ -693,7 +693,7 @@ remote_lrm_op_callback(lrmd_event_data_t * op)
             }
 
         } else {
-            lrm_state_reset_tables(lrm_state);
+            controld_execd_state_reset_tables(lrm_state);
             metadata_cache_reset(lrm_state->metadata_cache);
 
             pcmk__set_result(&cmd->result, PCMK_OCF_OK, PCMK_EXEC_DONE, NULL);
@@ -774,7 +774,7 @@ handle_remote_ra_stop(lrm_state_t * lrm_state, remote_ra_cmd_t * cmd)
     } else {
         /* we no longer hold the history if this connection has been migrated,
          * however, we keep metadata cache for future use */
-        lrm_state_reset_tables(lrm_state);
+        controld_execd_state_reset_tables(lrm_state);
     }
 
     lrm_remote_clear_flags(lrm_state, remote_active);
