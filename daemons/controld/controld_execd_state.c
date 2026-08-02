@@ -792,14 +792,33 @@ controld_execd_state_get_metadata(const lrm_state_t *lrm_state,
     return pcmk_legacy2rc(rc);
 }
 
+/*!
+ * \internal
+ * \brief Cancel a resource operation via a given executor state object
+ *
+ * If \p rsc_id is the name of a remote connection resource, use the executor
+ * state object belonging to node \p rsc_id. Otherwise, use \p lrm_state.
+ *
+ * Send a cancellation request containing \p rsc_id, \p action, and
+ * \p interval_ms, via the selected executor state object's connection.
+ *
+ * \param[in,out] lrm_state    Executor state
+ * \param[in]     rsc_id       Operation resource ID
+ * \param[in]     action       Operation action name
+ * \param[in]     interval_ms  Operation interval in milliseconds
+ *
+ * \return Standard Pacemaker return code
+ */
 int
-lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id, const char *action,
-                 unsigned int interval_ms)
+controld_execd_state_cancel(lrm_state_t *lrm_state, const char *rsc_id,
+                            const char *action, unsigned int interval_ms)
 {
+    int rc = pcmk_rc_ok;
+
     pcmk__assert(lrm_state != NULL);
 
-    if (!lrm_state->conn) {
-        return -ENOTCONN;
+    if (lrm_state->conn == NULL) {
+        return ENOTCONN;
     }
 
     /* Figure out a way to make this async?
@@ -807,10 +826,14 @@ lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id, const char *action,
      * controld_invoke_execd().
      */
     if (is_remote_lrmd_ra(rsc_id)) {
-        return remote_ra_cancel(rsc_id, action, interval_ms);
+        rc = remote_ra_cancel(rsc_id, action, interval_ms);
+
+    } else {
+        rc = lrm_state->conn->cmds->cancel(lrm_state->conn, rsc_id, action,
+                                           interval_ms);
     }
-    return lrm_state->conn->cmds->cancel(lrm_state->conn, rsc_id, action,
-                                         interval_ms);
+
+    return pcmk_legacy2rc(rc);
 }
 
 lrmd_rsc_info_t *

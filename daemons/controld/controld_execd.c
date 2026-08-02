@@ -655,7 +655,7 @@ bool
 controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
                          const char *key, int op, bool remove)
 {
-    int rc = pcmk_ok;
+    int rc = pcmk_rc_ok;
     char *local_key = NULL;
     active_op_t *pending = NULL;
 
@@ -687,9 +687,9 @@ controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
     }
 
     pcmk__debug("Cancelling op %d for %s (%s)", op, rsc_id, key);
-    rc = lrm_state_cancel(lrm_state, pending->rsc_id, pending->op_type,
-                          pending->interval_ms);
-    if (rc == pcmk_ok) {
+    rc = controld_execd_state_cancel(lrm_state, pending->rsc_id,
+                                     pending->op_type, pending->interval_ms);
+    if (rc == pcmk_rc_ok) {
         pcmk__debug("Op %d for %s (%s): cancelled", op, rsc_id, key);
         free(local_key);
         return true;

@@ -138,8 +138,8 @@ bool controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
 int controld_execd_state_get_metadata(const lrm_state_t *lrm_state,
                                       const char *class, const char *provider,
                                       const char *agent, char **output);
-int lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id,
-                     const char *action, unsigned int interval_ms);
+int controld_execd_state_cancel(lrm_state_t *lrm_state, const char *rsc_id,
+                                const char *action, unsigned int interval_ms);
 int controld_execute_resource_agent(lrm_state_t *lrm_state, const char *rsc_id,
                                     const char *action, const char *userdata,
                                     unsigned int interval_ms, int timeout_ms,
