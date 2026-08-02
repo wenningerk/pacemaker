@@ -22,8 +22,6 @@
 
 #include <pacemaker-controld.h>
 
-#define REMOTE_LRMD_RA "remote"
-
 /* The max start timeout before cmd retry */
 #define MAX_START_TIMEOUT_MS 10000
 
@@ -969,12 +967,9 @@ remote_ra_cleanup(lrm_state_t * lrm_state)
     g_clear_pointer(&lrm_state->remote_ra_data, free);
 }
 
-gboolean
-is_remote_lrmd_ra(const char *agent, const char *provider, const char *id)
+bool
+is_remote_lrmd_ra(const char *id)
 {
-    if (agent && provider && !strcmp(agent, REMOTE_LRMD_RA) && !strcmp(provider, "pacemaker")) {
-        return TRUE;
-    }
     return (id != NULL) && (controld_execd_state_get(id, false) != NULL)
            && !controld_is_local_node(id);
 }
@@ -990,7 +985,7 @@ remote_ra_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id)
         info = pcmk__assert_alloc(1, sizeof(lrmd_rsc_info_t));
 
         info->id = pcmk__str_copy(rsc_id);
-        info->type = pcmk__str_copy(REMOTE_LRMD_RA);
+        info->type = pcmk__str_copy("remote");
         info->standard = pcmk__str_copy(PCMK_RESOURCE_CLASS_OCF);
         info->provider = pcmk__str_copy("pacemaker");
     }

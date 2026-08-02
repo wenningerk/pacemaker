@@ -806,7 +806,7 @@ lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id, const char *action,
      * NOTICE: Currently it's synced and directly acknowledged in
      * controld_invoke_execd().
      */
-    if (is_remote_lrmd_ra(NULL, NULL, rsc_id)) {
+    if (is_remote_lrmd_ra(rsc_id)) {
         return remote_ra_cancel(rsc_id, action, interval_ms);
     }
     return lrm_state->conn->cmds->cancel(lrm_state->conn, rsc_id, action,
@@ -823,7 +823,7 @@ lrm_state_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id, enum lrmd_ca
     if (!lrm_state->conn) {
         return NULL;
     }
-    if (is_remote_lrmd_ra(NULL, NULL, rsc_id)) {
+    if (is_remote_lrmd_ra(rsc_id)) {
         return remote_ra_get_rsc_info(lrm_state, rsc_id);
     }
 
@@ -888,7 +888,7 @@ controld_execute_resource_agent(lrm_state_t *lrm_state, const char *rsc_id,
         }
     }
 
-    if (is_remote_lrmd_ra(NULL, NULL, rsc_id)) {
+    if (is_remote_lrmd_ra(rsc_id)) {
         rc = controld_execute_remote_agent(lrm_state, rsc_id, action,
                                            userdata, interval_ms, timeout_ms,
                                            start_delay_ms, params, call_id);
@@ -919,7 +919,9 @@ lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
         return -ENOTCONN;
     }
 
-    if (is_remote_lrmd_ra(agent, provider, NULL)) {
+    if (pcmk__str_eq(provider, "pacemaker", pcmk__str_none)
+        && pcmk__str_eq(agent, "remote", pcmk__str_none)) {
+
         return controld_execd_state_get(rsc_id, true)? pcmk_ok : -EINVAL;
     }
 
@@ -940,7 +942,7 @@ lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id,
         return -ENOTCONN;
     }
 
-    if (is_remote_lrmd_ra(NULL, NULL, rsc_id)) {
+    if (is_remote_lrmd_ra(rsc_id)) {
         g_hash_table_remove(lrm_state_table, rsc_id);
         return pcmk_ok;
     }

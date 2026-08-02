@@ -913,7 +913,7 @@ force_reprobe(lrm_state_t *lrm_state, const char *from_sys,
          * membership */
         bool unregister = true;
 
-        if (is_remote_lrmd_ra(NULL, NULL, entry->id)) {
+        if (is_remote_lrmd_ra(entry->id)) {
             unregister = false;
 
             if (reprobe_all_nodes) {
@@ -1145,10 +1145,10 @@ static bool do_lrm_cancel(ha_msg_input_t *input, lrm_state_t *lrm_state,
     }
 
     // Acknowledge cancellation operation if for a remote connection resource
-    if (!in_progress || is_remote_lrmd_ra(NULL, NULL, rsc->id)) {
+    if (!in_progress || is_remote_lrmd_ra(rsc->id)) {
         char *op_id = make_stop_id(rsc->id, call);
 
-        if (is_remote_lrmd_ra(NULL, NULL, rsc->id) == FALSE) {
+        if (!is_remote_lrmd_ra(rsc->id)) {
             pcmk__info("Nothing known about operation %d for %s", call, op_key);
         }
         controld_delete_action_history_by_key(rsc->id, lrm_state->node_name,
@@ -1189,7 +1189,7 @@ do_lrm_delete(ha_msg_input_t *input, lrm_state_t *lrm_state,
         return;
     }
 
-    if (crm_rsc_delete && is_remote_lrmd_ra(NULL, NULL, rsc->id)) {
+    if (crm_rsc_delete && is_remote_lrmd_ra(rsc->id)) {
         unregister = false;
     }
 
@@ -1689,7 +1689,7 @@ static bool
 should_cancel_recurring(const char *rsc_id, const char *action,
                         unsigned int interval_ms)
 {
-    if (is_remote_lrmd_ra(NULL, NULL, rsc_id) && (interval_ms == 0)
+    if (is_remote_lrmd_ra(rsc_id) && (interval_ms == 0)
         && (strcmp(action, PCMK_ACTION_MIGRATE_TO) == 0)) {
         /* Don't stop monitoring a migrating Pacemaker Remote connection
          * resource until the entire migration has completed. We must detect if

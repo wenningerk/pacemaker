@@ -156,7 +156,7 @@ int lrm_state_unregister_rsc(lrm_state_t * lrm_state,
 
 // Functions used to manage remote executor connection resources
 void remote_lrm_op_callback(lrmd_event_data_t * op);
-gboolean is_remote_lrmd_ra(const char *agent, const char *provider, const char *id);
+bool is_remote_lrmd_ra(const char *id);
 lrmd_rsc_info_t *remote_ra_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id);
 int remote_ra_cancel(const char *rsc_id, const char *action,
                      unsigned int interval_ms);
