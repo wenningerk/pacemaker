@@ -71,50 +71,6 @@ free_pending_deletion_op(void *data)
 
 /*!
  * \internal
- * \brief Fail a pending operation in response to executor disconnection
- *
- * \param[in]     key        Executor call key (<tt>const char *</tt>)
- * \param[in,out] value      Operation (<tt>active_op_t *</tt>)
- * \param[in,out] user_data  Executor state (<tt>lrm_state_t *</tt>)
- *
- * \return \c true (to remove \p key and \p value from the hash table)
- *
- * \note This is a \c GHRFunc.
- */
-static gboolean
-fail_pending_op(void *key, void *value, void *user_data)
-{
-    const char *call_key = key;
-    active_op_t *op = value;
-    lrm_state_t *lrm_state = user_data;
-
-    lrmd_event_data_t *event = NULL;
-
-    pcmk__assert((call_key != NULL) && (op != NULL) && (lrm_state != NULL));
-
-    pcmk__trace("Preemptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
-                op->rsc_id, op->op_type, op->interval_ms,
-                lrm_state->node_name, call_key, op->transition_key);
-
-    event = lrmd_new_event(op->rsc_id, op->op_type, op->interval_ms);
-    event->type = lrmd_event_exec_complete;
-    event->user_data = pcmk__str_copy(op->transition_key);
-    event->call_id = op->call_id;
-    event->t_run = op->start_time;
-    event->t_rcchange = op->start_time;
-    event->params = pcmk__str_table_dup(op->params);
-    event->remote_nodename = pcmk__str_copy(lrm_state->node_name);
-
-    lrmd__set_result(event, PCMK_OCF_UNKNOWN_ERROR, PCMK_EXEC_NOT_CONNECTED,
-                     "Action was pending when executor connection was dropped");
-
-    process_lrm_event(lrm_state, event, op, NULL);
-    lrmd_free_event(event);
-    return true;
-}
-
-/*!
- * \internal
  * \brief Create an executor state object for a node
  *
  * \param[in] node_name  Node name
@@ -615,6 +571,61 @@ lrm_state_verify_stopped(lrm_state_t *lrm_state, enum crmd_fsa_state cur_state,
     return true;
 }
 
+/*!
+ * \internal
+ * \brief Fail a pending operation in response to executor disconnection
+ *
+ * \param[in]     key        Executor call key (<tt>const char *</tt>)
+ * \param[in,out] value      Operation (<tt>active_op_t *</tt>)
+ * \param[in,out] user_data  Executor state (<tt>lrm_state_t *</tt>)
+ *
+ * \return \c true (to remove \p key and \p value from the hash table)
+ *
+ * \note This is a \c GHRFunc.
+ */
+static gboolean
+fail_pending_op(void *key, void *value, void *user_data)
+{
+    const char *call_key = key;
+    active_op_t *op = value;
+    lrm_state_t *lrm_state = user_data;
+
+    lrmd_event_data_t *event = NULL;
+
+    pcmk__assert((call_key != NULL) && (op != NULL) && (lrm_state != NULL));
+
+    pcmk__trace("Preemptively failing " PCMK__OP_FMT " on %s (call=%s, %s)",
+                op->rsc_id, op->op_type, op->interval_ms,
+                lrm_state->node_name, call_key, op->transition_key);
+
+    event = lrmd_new_event(op->rsc_id, op->op_type, op->interval_ms);
+    event->type = lrmd_event_exec_complete;
+    event->user_data = pcmk__str_copy(op->transition_key);
+    event->call_id = op->call_id;
+    event->t_run = op->start_time;
+    event->t_rcchange = op->start_time;
+    event->params = pcmk__str_table_dup(op->params);
+    event->remote_nodename = pcmk__str_copy(lrm_state->node_name);
+
+    lrmd__set_result(event, PCMK_OCF_UNKNOWN_ERROR, PCMK_EXEC_NOT_CONNECTED,
+                     "Action was pending when executor connection was dropped");
+
+    process_lrm_event(lrm_state, event, op, NULL);
+    lrmd_free_event(event);
+    return true;
+}
+
+/*!
+ * \internal
+ * \brief Disconnect an executor state object
+ *
+ * Disconnect the remote proxies for the object's node and disconnect its
+ * executor IPC connection. If the controller isn't shutting down, synthesize
+ * failures for operations that are still pending and remove them from the
+ * object's \c active_ops table.
+ *
+ * \param[in,out] lrm_state  Executor state
+ */
 void
 controld_execd_state_disconnect(lrm_state_t *lrm_state)
 {
@@ -622,21 +633,22 @@ controld_execd_state_disconnect(lrm_state_t *lrm_state)
 
     pcmk__assert(lrm_state != NULL);
 
-    if (!lrm_state->conn) {
+    if (lrm_state->conn == NULL) {
         return;
     }
+
     pcmk__trace("Disconnecting %s", lrm_state->node_name);
-
     controld_remote_proxy_disconnect_node(lrm_state->node_name);
-
     lrm_state->conn->cmds->disconnect(lrm_state->conn);
 
-    if (!pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
-        removed = g_hash_table_foreach_remove(lrm_state->active_ops,
-                                              fail_pending_op, lrm_state);
-        pcmk__trace("Synthesized %u operation failures for %s", removed,
-                    lrm_state->node_name);
+    if (pcmk__is_set(controld_globals.fsa_input_register, R_SHUTDOWN)) {
+        return;
     }
+
+    removed = g_hash_table_foreach_remove(lrm_state->active_ops,
+                                          fail_pending_op, lrm_state);
+    pcmk__trace("Synthesized %u operation failures for %s", removed,
+                lrm_state->node_name);
 }
 
 // \return Standard Pacemaker return code
