@@ -533,9 +533,9 @@ notify_deleted(lrm_state_t * lrm_state, ha_msg_input_t * input, const char *rsc_
 
     pcmk__info("Notifying %s on %s that %s was%s deleted", from_sys,
                pcmk__s(from_host, "localhost"), rsc_id,
-               ((rc == pcmk_ok)? "" : " not"));
+               ((rc == pcmk_rc_ok)? "" : " not"));
     op = construct_op(lrm_state, input->xml, rsc_id, PCMK_ACTION_DELETE);
-    controld_rc2event(op, pcmk_legacy2rc(rc));
+    controld_rc2event(op, rc);
     controld_ack_event_directly(from_host, from_sys, NULL, op, rsc_id);
     lrmd_free_event(op);
     controld_trigger_delete_refresh(from_sys, rsc_id);
@@ -548,7 +548,8 @@ lrm_remove_deleted_rsc(void *key, void *value, void *user_data)
     struct pending_deletion_op_s *op = value;
 
     if (pcmk__str_eq(event->rsc, op->rsc, pcmk__str_none)) {
-        notify_deleted(event->lrm_state, op->input, event->rsc, event->rc);
+        notify_deleted(event->lrm_state, op->input, event->rsc,
+                       pcmk_legacy2rc(event->rc));
         return TRUE;
     }
     return FALSE;
@@ -596,7 +597,7 @@ delete_rsc_entry(lrm_state_t *lrm_state, ha_msg_input_t *input,
     }
 
     if (input) {
-        notify_deleted(lrm_state, input, rsc_id, rc);
+        notify_deleted(lrm_state, input, rsc_id, pcmk_legacy2rc(rc));
     }
 
     event.rc = rc;
