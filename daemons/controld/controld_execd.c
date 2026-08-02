@@ -1836,10 +1836,9 @@ do_lrm_rsc_op(lrm_state_t *lrm_state, lrmd_rsc_info_t *rsc, xmlNode *msg,
         cancel_op_key(lrm_state, rsc, op_id, FALSE);
     }
 
-    rc = controld_execute_resource_agent(lrm_state, rsc->id, op->op_type,
-                                         op->user_data, op->interval_ms,
-                                         op->timeout, op->start_delay,
-                                         op->params, &call_id);
+    rc = controld_execd_state_exec(lrm_state, rsc->id, op->op_type,
+                                   op->user_data, op->interval_ms, op->timeout,
+                                   op->start_delay, op->params, &call_id);
     if (rc == pcmk_rc_ok) {
         /* record all operations so we can wait
          * for them to complete during shutdown

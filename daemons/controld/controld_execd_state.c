@@ -887,26 +887,27 @@ controld_execd_state_get_rsc_info(lrm_state_t *lrm_state, const char *rsc_id)
 
 /*!
  * \internal
- * \brief Initiate a resource agent action
+ * \brief Initiate a resource operation via a given executor state object
  *
- * \param[in,out] lrm_state       Executor state object
- * \param[in]     rsc_id          ID of resource for action
- * \param[in]     action          Action to execute
- * \param[in]     userdata        String to copy and pass to execution callback
- * \param[in]     interval_ms     Action interval (in milliseconds)
- * \param[in]     timeout_ms      Action timeout (in milliseconds)
- * \param[in]     start_delay_ms  Delay (in ms) before initiating action
- * \param[in]     parameters      Hash table of resource parameters
+ * \param[in,out] lrm_state       Executor state
+ * \param[in]     rsc_id          Operation resource ID
+ * \param[in]     action          Operation action name
+ * \param[in]     user_data       User data for executor event callback
+ * \param[in]     interval_ms     Operation interval in milliseconds
+ * \param[in]     timeout_ms      Operation timeout in milliseconds
+ * \param[in]     start_delay_ms  Delay in milliseconds before initiating
+ *                                operation
+ * \param[in]     parameters      Resource parameters (can be \c NULL)
  * \param[out]    call_id         Where to store call ID on success
  *
  * \return Standard Pacemaker return code
  */
 int
-controld_execute_resource_agent(lrm_state_t *lrm_state, const char *rsc_id,
-                                const char *action, const char *userdata,
-                                unsigned int interval_ms, int timeout_ms,
-                                int start_delay_ms, GHashTable *parameters,
-                                int *call_id)
+controld_execd_state_exec(lrm_state_t *lrm_state, const char *rsc_id,
+                          const char *action, const char *user_data,
+                          unsigned int interval_ms, int timeout_ms,
+                          int start_delay_ms, GHashTable *parameters,
+                          int *call_id)
 {
     int rc = pcmk_rc_ok;
     lrmd_key_value_t *params = NULL;
@@ -924,23 +925,20 @@ controld_execute_resource_agent(lrm_state_t *lrm_state, const char *rsc_id,
     }
 
     if (is_remote_lrmd_ra(rsc_id)) {
-        rc = controld_execute_remote_agent(lrm_state, rsc_id, action,
-                                           userdata, interval_ms, timeout_ms,
-                                           start_delay_ms, params, call_id);
-
-    } else {
-        rc = lrm_state->conn->cmds->exec(lrm_state->conn, rsc_id, action,
-                                         userdata, interval_ms, timeout_ms,
-                                         start_delay_ms,
-                                         lrmd_opt_notify_changes_only, params);
-        if (rc < 0) {
-            rc = pcmk_legacy2rc(rc);
-        } else {
-            *call_id = rc;
-            rc = pcmk_rc_ok;
-        }
+        return controld_execute_remote_agent(lrm_state, rsc_id, action,
+                                             user_data, interval_ms, timeout_ms,
+                                             start_delay_ms, params, call_id);
     }
-    return rc;
+
+    rc = lrm_state->conn->cmds->exec(lrm_state->conn, rsc_id, action, user_data,
+                                     interval_ms, timeout_ms, start_delay_ms,
+                                     lrmd_opt_notify_changes_only, params);
+    if (rc < 0) {
+        return pcmk_legacy2rc(rc);
+    }
+
+    *call_id = rc;
+    return pcmk_rc_ok;
 }
 
 int
