@@ -739,16 +739,34 @@ controld_execd_state_connect_remote(lrm_state_t *lrm_state, const char *server,
     return rc;
 }
 
+/*!
+ * \internal
+ * \brief Get resource agent metadata via an executor state object
+ *
+ * This function does not communicate with the executor. \p lrm_state->conn is
+ * used only as a means of accessing the executor API. The
+ * \c get_metadata_params() method doesn't use the IPC connection.
+ *
+ * \param[in]  lrm_state   Executor state
+ * \param[in]  class       Resource agent standard
+ * \param[in]  provider    Resource agent provider (can be \c NULL)
+ * \param[in]  agent       Resource agent name
+ * \param[out] output      Where to store the output of the metadata request
+ *
+ * \return Standard Pacemaker return code
+ */
 int
-lrm_state_get_metadata(lrm_state_t *lrm_state, const char *class,
-                       const char *provider, const char *agent, char **output)
+controld_execd_state_get_metadata(const lrm_state_t *lrm_state,
+                                  const char *class, const char *provider,
+                                  const char *agent, char **output)
 {
+    int rc = pcmk_rc_ok;
     lrmd_key_value_t *params = NULL;
 
     pcmk__assert(lrm_state != NULL);
 
-    if (!lrm_state->conn) {
-        return -ENOTCONN;
+    if (lrm_state->conn == NULL) {
+        return ENOTCONN;
     }
 
     /* Add the node name to the environment, as is done with normal resource
@@ -768,9 +786,10 @@ lrm_state_get_metadata(lrm_state_t *lrm_state, const char *class,
     params = lrmd_key_value_add(params, CRM_META "_" PCMK__META_ON_NODE,
                                 lrm_state->node_name);
 
-    return lrm_state->conn->cmds->get_metadata_params(lrm_state->conn, class,
-                                                      provider, agent, output,
-                                                      lrmd_opt_none, params);
+    rc = lrm_state->conn->cmds->get_metadata_params(lrm_state->conn, class,
+                                                    provider, agent, output,
+                                                    lrmd_opt_none, params);
+    return pcmk_legacy2rc(rc);
 }
 
 int
