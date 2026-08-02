@@ -740,10 +740,8 @@ controld_execd_state_connect_remote(lrm_state_t *lrm_state, const char *server,
 }
 
 int
-lrm_state_get_metadata(lrm_state_t * lrm_state,
-                       const char *class,
-                       const char *provider,
-                       const char *agent, char **output, enum lrmd_call_options options)
+lrm_state_get_metadata(lrm_state_t *lrm_state, const char *class,
+                       const char *provider, const char *agent, char **output)
 {
     lrmd_key_value_t *params = NULL;
 
@@ -772,7 +770,7 @@ lrm_state_get_metadata(lrm_state_t * lrm_state,
 
     return lrm_state->conn->cmds->get_metadata_params(lrm_state->conn, class,
                                                       provider, agent, output,
-                                                      options, params);
+                                                      lrmd_opt_none, params);
 }
 
 int

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2025 the Pacemaker project contributors
+ * Copyright 2017-2026 the Pacemaker project contributors
  *
  * The version control history for this file may have further details.
  *
@@ -298,7 +298,7 @@ controld_get_rsc_metadata(lrm_state_t *lrm_state, const lrmd_rsc_info_t *rsc,
                 rsc->standard, ((rsc->provider != NULL)? ":" : ""),
                 pcmk__s(rsc->provider, ""), rsc->type);
     rc = lrm_state_get_metadata(lrm_state, rsc->standard, rsc->provider,
-                                rsc->type, &metadata_str, 0);
+                                rsc->type, &metadata_str);
     if (rc != pcmk_ok) {
         pcmk__warn("Failed to get metadata for %s (%s%s%s:%s): %s", rsc->id,
                    rsc->standard, ((rsc->provider == NULL)? "" : ":"),
