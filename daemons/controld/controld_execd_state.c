@@ -651,9 +651,19 @@ controld_execd_state_disconnect(lrm_state_t *lrm_state)
                 lrm_state->node_name);
 }
 
-// \return Standard Pacemaker return code
+/*!
+ * \internal
+ * \brief Connect an executor state object to the local executor
+ *
+ * This initializes the object's \c conn field if it's \c NULL. It increments
+ * the \c num_lrm_register_fails counter on failure or sets it to 0 on success.
+ *
+ * \param[in,out] lrm_state  Executor state
+ *
+ * \return Standard Pacemaker return code
+ */
 int
-controld_connect_local_executor(lrm_state_t *lrm_state)
+controld_execd_state_connect_local(lrm_state_t *lrm_state)
 {
     int rc = pcmk_rc_ok;
 
@@ -669,16 +679,31 @@ controld_connect_local_executor(lrm_state_t *lrm_state)
 
     if (rc == pcmk_rc_ok) {
         lrm_state->num_lrm_register_fails = 0;
+
     } else {
         lrm_state->num_lrm_register_fails++;
     }
+
     return rc;
 }
 
-// \return Standard Pacemaker return code
+/*!
+ * \internal
+ * \brief Connect an executor state object to a Pacemaker Remote node
+ *
+ * This initializes the object's \c conn field if it's \c NULL. It increments
+ * the \c num_lrm_register_fails counter on failure or sets it to 0 on success.
+ *
+ * \param[in,out] lrm_state   Executor state
+ * \param[in]     server      Resolvable host name or IP address
+ * \param[in]     port        Port number on \p server
+ * \param[in]     timeout_ms  Asynchronous connection timeout in milliseconds
+ *
+ * \return Standard Pacemaker return code
+ */
 int
-controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
-                                 int port, int timeout_ms)
+controld_execd_state_connect_remote(lrm_state_t *lrm_state, const char *server,
+                                    int port, int timeout_ms)
 {
     int rc = pcmk_rc_ok;
 
@@ -695,14 +720,23 @@ controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
 
     pcmk__trace("Initiating remote connection to %s:%d with timeout %dms",
                 server, port, timeout_ms);
+
     rc = lrm_state->conn->cmds->connect_async(lrm_state->conn,
                                               lrm_state->node_name, timeout_ms);
-    if (rc == pcmk_ok) {
+    rc = pcmk_legacy2rc(rc);
+
+    if (rc == pcmk_rc_ok) {
         lrm_state->num_lrm_register_fails = 0;
+
     } else {
-        lrm_state->num_lrm_register_fails++; // Ignored for remote connections
+        /* Ignored for remote connections.
+         *
+         * @TODO Do we even need to set this in this function?
+         */
+        lrm_state->num_lrm_register_fails++;
     }
-    return pcmk_legacy2rc(rc);
+
+    return rc;
 }
 
 int

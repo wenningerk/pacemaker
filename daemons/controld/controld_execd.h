@@ -128,9 +128,10 @@ bool lrm_state_verify_stopped(lrm_state_t *lrm_state,
  * locally in the controller.
  */
 void controld_execd_state_disconnect(lrm_state_t *lrm_state);
-int controld_connect_local_executor(lrm_state_t *lrm_state);
-int controld_connect_remote_executor(lrm_state_t *lrm_state, const char *server,
-                                     int port, int timeout);
+int controld_execd_state_connect_local(lrm_state_t *lrm_state);
+int controld_execd_state_connect_remote(lrm_state_t *lrm_state,
+                                        const char *server, int port,
+                                        int timeout_ms);
 
 bool controld_execd_cancel_op(lrm_state_t *lrm_state, const char *rsc_id,
                               const char *key, int op, bool remove);

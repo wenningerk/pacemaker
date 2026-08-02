@@ -309,7 +309,7 @@ try_local_executor_connect(long long action, fsa_data_t *msg_data,
     pcmk__debug("Connecting to the local executor");
 
     // If we can connect, great
-    rc = controld_connect_local_executor(lrm_state);
+    rc = controld_execd_state_connect_local(lrm_state);
     if (rc == pcmk_rc_ok) {
         controld_set_fsa_input_flags(R_LRM_CONNECTED);
         pcmk__info("Connection to the local executor established");

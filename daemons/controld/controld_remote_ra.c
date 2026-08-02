@@ -821,8 +821,8 @@ handle_remote_ra_start(lrm_state_t * lrm_state, remote_ra_cmd_t * cmd, int timeo
         }
     }
 
-    rc = controld_connect_remote_executor(lrm_state, server, port,
-                                          timeout_used);
+    rc = controld_execd_state_connect_remote(lrm_state, server, port,
+                                             timeout_used);
     if (rc != pcmk_rc_ok) {
         pcmk__format_result(&cmd->result, PCMK_OCF_UNKNOWN_ERROR,
                             PCMK_EXEC_ERROR,
