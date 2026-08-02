@@ -975,7 +975,7 @@ is_remote_lrmd_ra(const char *id)
 }
 
 lrmd_rsc_info_t *
-remote_ra_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id)
+remote_ra_get_rsc_info(const char *rsc_id)
 {
     lrmd_rsc_info_t *info = NULL;
 

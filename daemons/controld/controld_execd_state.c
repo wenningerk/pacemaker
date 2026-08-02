@@ -847,7 +847,7 @@ lrm_state_get_rsc_info(lrm_state_t *lrm_state, const char *rsc_id)
         return NULL;
     }
     if (is_remote_lrmd_ra(rsc_id)) {
-        return remote_ra_get_rsc_info(lrm_state, rsc_id);
+        return remote_ra_get_rsc_info(rsc_id);
     }
 
     rsc = g_hash_table_lookup(lrm_state->rsc_info_cache, rsc_id);
