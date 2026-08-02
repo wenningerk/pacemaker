@@ -147,10 +147,9 @@ int controld_execd_state_exec(lrm_state_t *lrm_state, const char *rsc_id,
                               int *call_id);
 lrmd_rsc_info_t *controld_execd_state_get_rsc_info(lrm_state_t *lrm_state,
                                                    const char *rsc_id);
-int lrm_state_register_rsc(lrm_state_t * lrm_state,
-                           const char *rsc_id,
-                           const char *class,
-                           const char *provider, const char *agent, enum lrmd_call_options options);
+int lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
+                           const char *class, const char *provider,
+                           const char *agent);
 int lrm_state_unregister_rsc(lrm_state_t * lrm_state,
                              const char *rsc_id, enum lrmd_call_options options);
 

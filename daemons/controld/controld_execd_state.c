@@ -944,7 +944,7 @@ controld_execd_state_exec(lrm_state_t *lrm_state, const char *rsc_id,
 int
 lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
                        const char *class, const char *provider,
-                       const char *agent, enum lrmd_call_options options)
+                       const char *agent)
 {
     pcmk__assert(lrm_state != NULL);
 
@@ -962,7 +962,8 @@ lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
      * call to the lrmd).
      */
     return lrm_state->conn->cmds->register_rsc(lrm_state->conn, rsc_id, class,
-                                               provider, agent, options);
+                                               provider, agent,
+                                               lrmd_opt_drop_recurring);
 }
 
 int
