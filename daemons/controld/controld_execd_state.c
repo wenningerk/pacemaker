@@ -123,7 +123,7 @@ fail_pending_op(void *key, void *value, void *user_data)
  *         (guaranteed not to be \c NULL)
  *
  * \note The caller is responsible for freeing the return value using
- *       \c internal_lrm_state_destroy().
+ *       \c free_lrm_state().
  */
 static lrm_state_t *
 new_lrm_state(const char *node_name)
@@ -141,8 +141,22 @@ new_lrm_state(const char *node_name)
     return state;
 }
 
+/*!
+ * \internal
+ * \brief Free an executor state object
+ *
+ * Disconnect proxies for the associated node, disconnect the executor IPC
+ * connection, and free all dynamically allocated memory for the object.
+ *
+ * The destroy callback will remove the proxies from the proxy table -- see
+ * \c controld_remote_proxy_disconnect_node().
+ *
+ * \param[in,out] data  Executor state (<tt>lrm_state_t *</tt>)
+ *
+ * \note This is a \c GDestroyNotify.
+ */
 static void
-internal_lrm_state_destroy(void *data)
+free_lrm_state(void *data)
 {
     lrm_state_t *lrm_state = data;
 
@@ -150,20 +164,14 @@ internal_lrm_state_destroy(void *data)
         return;
     }
 
-    /* Rather than directly remove the recorded proxy entries from proxy_table,
-     * make sure any connected proxies get disconnected. So that
-     * remote_proxy_disconnected() will be called and as well remove the
-     * entries from proxy_table.
-     */
     controld_remote_proxy_disconnect_node(lrm_state->node_name);
-
     remote_ra_cleanup(lrm_state);
     lrmd_api_delete(lrm_state->conn);
 
-    g_clear_pointer(&lrm_state->rsc_info_cache, g_hash_table_destroy);
     g_clear_pointer(&lrm_state->resource_history, g_hash_table_destroy);
-    g_clear_pointer(&lrm_state->deletion_ops, g_hash_table_destroy);
     g_clear_pointer(&lrm_state->active_ops, g_hash_table_destroy);
+    g_clear_pointer(&lrm_state->deletion_ops, g_hash_table_destroy);
+    g_clear_pointer(&lrm_state->rsc_info_cache, g_hash_table_destroy);
 
     metadata_cache_free(lrm_state->metadata_cache);
 
@@ -200,7 +208,7 @@ controld_execd_state_table_init(void)
         return;
     }
 
-    lrm_state_table = pcmk__strikey_table(NULL, internal_lrm_state_destroy);
+    lrm_state_table = pcmk__strikey_table(NULL, free_lrm_state);
 }
 
 void
