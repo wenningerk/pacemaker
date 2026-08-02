@@ -836,35 +836,53 @@ controld_execd_state_cancel(lrm_state_t *lrm_state, const char *rsc_id,
     return pcmk_legacy2rc(rc);
 }
 
+/*!
+ * \internal
+ * \brief Get info for a given resource via a given executor state object
+ *
+ * If \p rsc_id is the name of a remote connection resource, use the executor
+ * state object belonging to node \p rsc_id. Otherwise, use \p lrm_state.
+ *
+ * Look up the resource in the resource info cache first. If not found, request
+ * it from the executor, and add it to the cache on success.
+ *
+ * \param[in,out] lrm_state    Executor state
+ * \param[in]     rsc_id       Resource ID
+ *
+ * \return Newly allocated copy of resource info for \p rsc_id, or \c NULL on
+ *         failure to get the resource info
+ *
+ * \note The caller is responsible for freeing the return value using
+ *       \c lrmd_free_rsc_info().
+ */
 lrmd_rsc_info_t *
-lrm_state_get_rsc_info(lrm_state_t *lrm_state, const char *rsc_id)
+controld_execd_state_get_rsc_info(lrm_state_t *lrm_state, const char *rsc_id)
 {
     lrmd_rsc_info_t *rsc = NULL;
 
     pcmk__assert(lrm_state != NULL);
 
-    if (!lrm_state->conn) {
+    if (lrm_state->conn == NULL) {
         return NULL;
     }
+
     if (is_remote_lrmd_ra(rsc_id)) {
         return remote_ra_get_rsc_info(rsc_id);
     }
 
     rsc = g_hash_table_lookup(lrm_state->rsc_info_cache, rsc_id);
-    if (rsc == NULL) {
-        /* only contact the lrmd if we don't already have a cached rsc info */
-        rsc = lrm_state->conn->cmds->get_rsc_info(lrm_state->conn, rsc_id,
-                                                  lrmd_opt_none);
-        if (rsc == NULL) {
-		    return NULL;
-        }
-
-        /* cache the result */
-        g_hash_table_insert(lrm_state->rsc_info_cache, rsc->id, rsc);
+    if (rsc != NULL) {
+        return lrmd_copy_rsc_info(rsc);
     }
 
-    return lrmd_copy_rsc_info(rsc);
+    rsc = lrm_state->conn->cmds->get_rsc_info(lrm_state->conn, rsc_id,
+                                              lrmd_opt_none);
+    if (rsc == NULL) {
+        return NULL;
+    }
 
+    g_hash_table_insert(lrm_state->rsc_info_cache, rsc->id, rsc);
+    return lrmd_copy_rsc_info(rsc);
 }
 
 /*!
