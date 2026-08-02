@@ -1068,8 +1068,8 @@ remove_cmd(GList * list, const char *action, unsigned int interval_ms)
 }
 
 int
-remote_ra_cancel(lrm_state_t *lrm_state, const char *rsc_id,
-                 const char *action, unsigned int interval_ms)
+remote_ra_cancel(const char *rsc_id, const char *action,
+                 unsigned int interval_ms)
 {
     lrm_state_t *connection_rsc = NULL;
     remote_ra_data_t *ra_data = NULL;

@@ -158,8 +158,8 @@ int lrm_state_unregister_rsc(lrm_state_t * lrm_state,
 void remote_lrm_op_callback(lrmd_event_data_t * op);
 gboolean is_remote_lrmd_ra(const char *agent, const char *provider, const char *id);
 lrmd_rsc_info_t *remote_ra_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id);
-int remote_ra_cancel(lrm_state_t *lrm_state, const char *rsc_id,
-                     const char *action, unsigned int interval_ms);
+int remote_ra_cancel(const char *rsc_id, const char *action,
+                     unsigned int interval_ms);
 int controld_execute_remote_agent(const lrm_state_t *lrm_state,
                                   const char *rsc_id, const char *action,
                                   const char *userdata,

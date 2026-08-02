@@ -807,7 +807,7 @@ lrm_state_cancel(lrm_state_t *lrm_state, const char *rsc_id, const char *action,
      * controld_invoke_execd().
      */
     if (is_remote_lrmd_ra(NULL, NULL, rsc_id)) {
-        return remote_ra_cancel(lrm_state, rsc_id, action, interval_ms);
+        return remote_ra_cancel(rsc_id, action, interval_ms);
     }
     return lrm_state->conn->cmds->cancel(lrm_state->conn, rsc_id, action,
                                          interval_ms);
