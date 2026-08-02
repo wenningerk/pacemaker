@@ -210,6 +210,10 @@ controld_execd_state_reset_tables(lrm_state_t *lrm_state)
     g_hash_table_remove_all(lrm_state->rsc_info_cache);
 }
 
+/*!
+ * \internal
+ * \brief Initialize the executor state table
+ */
 void
 controld_execd_state_table_init(void)
 {
@@ -220,6 +224,10 @@ controld_execd_state_table_init(void)
     lrm_state_table = pcmk__strikey_table(NULL, free_lrm_state);
 }
 
+/*!
+ * \internal
+ * \brief Free the executor state table and its entries
+ */
 void
 controld_execd_state_table_free(void)
 {

@@ -112,16 +112,7 @@ struct pending_deletion_op_s {
 void controld_execd_state_reset_tables(lrm_state_t *lrm_state);
 GList *lrm_state_get_list(void);
 
-/*!
- * \internal
- * \brief Initialize the controller's executor state table
- */
 void controld_execd_state_table_init(void);
-
-/*!
- * \internal
- * \brief Free the controller's executor state table and its entries
- */
 void controld_execd_state_table_free(void);
 
 lrm_state_t *controld_get_executor_state(const char *node_name, bool create);
