@@ -841,7 +841,7 @@ delete_resource(lrm_state_t *lrm_state, const char *id, lrmd_rsc_info_t *rsc,
                ((user != NULL)? " as " : ""), pcmk__s(user, ""));
 
     if (rsc && unregister) {
-        rc = lrm_state_unregister_rsc(lrm_state, id, 0);
+        rc = lrm_state_unregister_rsc(lrm_state, id);
     }
 
     if (rc == pcmk_ok) {

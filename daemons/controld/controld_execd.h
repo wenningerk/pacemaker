@@ -147,11 +147,11 @@ int controld_execd_state_exec(lrm_state_t *lrm_state, const char *rsc_id,
                               int *call_id);
 lrmd_rsc_info_t *controld_execd_state_get_rsc_info(lrm_state_t *lrm_state,
                                                    const char *rsc_id);
+
 int controld_execd_state_register_rsc(lrm_state_t *lrm_state,
                                       const char *rsc_id, const char *class,
                                       const char *provider, const char *agent);
-int lrm_state_unregister_rsc(lrm_state_t * lrm_state,
-                             const char *rsc_id, enum lrmd_call_options options);
+int lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id);
 
 // Functions used to manage remote executor connection resources
 void remote_lrm_op_callback(lrmd_event_data_t * op);

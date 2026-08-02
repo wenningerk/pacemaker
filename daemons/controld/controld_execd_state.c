@@ -990,8 +990,7 @@ controld_execd_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
 }
 
 int
-lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id,
-                         enum lrmd_call_options options)
+lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id)
 {
     pcmk__assert(lrm_state != NULL);
 
@@ -1012,5 +1011,5 @@ lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id,
      * should make an async version available.
      */
     return lrm_state->conn->cmds->unregister_rsc(lrm_state->conn, rsc_id,
-                                                 options);
+                                                 lrmd_opt_none);
 }
