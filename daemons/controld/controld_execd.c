@@ -786,14 +786,14 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
 
     pcmk__trace("Retrieving resource information for %s from the executor",
                 id);
-    *rsc_info = lrm_state_get_rsc_info(lrm_state, id, 0);
+    *rsc_info = lrm_state_get_rsc_info(lrm_state, id);
 
     // If resource isn't known by ID, try clone name, if provided
     if (!*rsc_info) {
         const char *long_id = pcmk__xe_get(rsc_xml, PCMK__XA_LONG_ID);
 
         if (long_id) {
-            *rsc_info = lrm_state_get_rsc_info(lrm_state, long_id, 0);
+            *rsc_info = lrm_state_get_rsc_info(lrm_state, long_id);
         }
     }
 
@@ -821,7 +821,7 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
             return rc;
         }
 
-        *rsc_info = lrm_state_get_rsc_info(lrm_state, id, 0);
+        *rsc_info = lrm_state_get_rsc_info(lrm_state, id);
     }
     return *rsc_info? pcmk_ok : -ENODEV;
 }
@@ -2038,7 +2038,7 @@ process_lrm_event(lrm_state_t *lrm_state, lrmd_event_data_t *op,
 
     // Get resource info if available (from executor state or action XML)
     if (lrm_state) {
-        rsc = lrm_state_get_rsc_info(lrm_state, op->rsc_id, 0);
+        rsc = lrm_state_get_rsc_info(lrm_state, op->rsc_id);
     }
     if ((rsc == NULL) && action_xml) {
         xmlNode *xml = pcmk__xe_first_child(action_xml, PCMK_XE_PRIMITIVE, NULL,

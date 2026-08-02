@@ -837,7 +837,7 @@ controld_execd_state_cancel(lrm_state_t *lrm_state, const char *rsc_id,
 }
 
 lrmd_rsc_info_t *
-lrm_state_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id, enum lrmd_call_options options)
+lrm_state_get_rsc_info(lrm_state_t *lrm_state, const char *rsc_id)
 {
     lrmd_rsc_info_t *rsc = NULL;
 
@@ -854,10 +854,11 @@ lrm_state_get_rsc_info(lrm_state_t * lrm_state, const char *rsc_id, enum lrmd_ca
     if (rsc == NULL) {
         /* only contact the lrmd if we don't already have a cached rsc info */
         rsc = lrm_state->conn->cmds->get_rsc_info(lrm_state->conn, rsc_id,
-                                                  options);
+                                                  lrmd_opt_none);
         if (rsc == NULL) {
 		    return NULL;
         }
+
         /* cache the result */
         g_hash_table_insert(lrm_state->rsc_info_cache, rsc->id, rsc);
     }
