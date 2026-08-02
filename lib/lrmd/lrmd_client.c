@@ -148,6 +148,26 @@ lrmd_key_value_add(lrmd_key_value_t * head, const char *key, const char *value)
     return head;
 }
 
+/*!
+ * \internal
+ * \brief Add a key and value to an \c lrmd_key_value_t list from a hash table
+ *
+ * \param[in]     key        Key (<tt>const char *</tt>)
+ * \param[in]     value      Value (<tt>const char *</tt>)
+ * \param[in,out] user_data  List (<tt>lrmd_key_value_t **</tt>)
+ *
+ * \note This is a \c GHFunc.
+ */
+void
+lrmd__key_value_add_from_hash(void *key, void *value, void *user_data)
+{
+    lrmd_key_value_t **list = user_data;
+
+    pcmk__assert(list != NULL);
+
+    *list = lrmd_key_value_add(*list, key, value);
+}
+
 void
 lrmd_key_value_freeall(lrmd_key_value_t * head)
 {
