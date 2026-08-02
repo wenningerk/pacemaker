@@ -941,29 +941,52 @@ controld_execd_state_exec(lrm_state_t *lrm_state, const char *rsc_id,
     return pcmk_rc_ok;
 }
 
+/*!
+ * \internal
+ * \brief Register a resource with the executor via a given state object
+ *
+ * If \p provider is \c "pacemaker" and \p agent is \c "remote" -- that is, if
+ * the registration is for a remote connection resource -- create an executor
+ * state object for node \p rsc_id and return.
+ *
+ * When \p lrm_state disconnects, the executor will cancel all of the resource's
+ * recurring operations that were initiated via \p lrm_state.
+ *
+ * \param[in,out] lrm_state    Executor state
+ * \param[in]     rsc_id       Resource ID
+ * \param[in]     class        Resource agent standard
+ * \param[in]     provider     Resource agent provider (can be \c NULL)
+ * \param[in]     agent        Resource agent name
+ *
+ * \return Standard Pacemaker return code
+ *
+ * \todo This function probably shouldn't handle remote connection resources,
+ *       since it doesn't register a resource in that case.
+ */
 int
-lrm_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
-                       const char *class, const char *provider,
-                       const char *agent)
+controld_execd_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
+                                  const char *class, const char *provider,
+                                  const char *agent)
 {
+    int rc = pcmk_rc_ok;
+
     pcmk__assert(lrm_state != NULL);
 
     if (lrm_state->conn == NULL) {
-        return -ENOTCONN;
+        return ENOTCONN;
     }
 
     if (pcmk__str_eq(provider, "pacemaker", pcmk__str_none)
         && pcmk__str_eq(agent, "remote", pcmk__str_none)) {
 
-        return controld_execd_state_get(rsc_id, true)? pcmk_ok : -EINVAL;
+        return controld_execd_state_get(rsc_id, true)? pcmk_rc_ok : EINVAL;
     }
 
-    /* @TODO Implement an asynchronous version of this (currently a blocking
-     * call to the lrmd).
-     */
-    return lrm_state->conn->cmds->register_rsc(lrm_state->conn, rsc_id, class,
-                                               provider, agent,
-                                               lrmd_opt_drop_recurring);
+    // @TODO Implement an asynchronous version of this
+    rc = lrm_state->conn->cmds->register_rsc(lrm_state->conn, rsc_id, class,
+                                             provider, agent,
+                                             lrmd_opt_drop_recurring);
+    return pcmk_legacy2rc(rc);
 }
 
 int

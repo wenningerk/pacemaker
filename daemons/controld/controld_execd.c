@@ -806,9 +806,8 @@ get_lrm_resource(lrm_state_t *lrm_state, const xmlNode *rsc_xml,
 
         pcmk__trace("Registering resource %s with the executor", id);
 
-        rc = lrm_state_register_rsc(lrm_state, id, class, provider, type);
-        rc = pcmk_legacy2rc(rc);
-
+        rc = controld_execd_state_register_rsc(lrm_state, id, class, provider,
+                                               type);
         if (rc != pcmk_rc_ok) {
             pcmk__err("Could not register resource %s with the executor on %s: "
                       "%s " QB_XS " rc=%d",
