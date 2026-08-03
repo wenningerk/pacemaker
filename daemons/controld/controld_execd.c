@@ -835,18 +835,19 @@ delete_resource(lrm_state_t *lrm_state, const char *id, lrmd_rsc_info_t *rsc,
                 GHashTableIter *iter, const char *sys, const char *user,
                 ha_msg_input_t *request, bool unregister, bool from_cib)
 {
-    int rc = pcmk_ok;
+    int rc = pcmk_rc_ok;
 
     pcmk__info("Removing resource %s from executor for %s%s%s", id, sys,
                ((user != NULL)? " as " : ""), pcmk__s(user, ""));
 
     if (rsc && unregister) {
-        rc = lrm_state_unregister_rsc(lrm_state, id);
+        rc = controld_execd_state_unregister_rsc(lrm_state, id);
     }
 
-    if (rc == pcmk_ok) {
+    if (rc == pcmk_rc_ok) {
         pcmk__trace("Resource %s deleted from executor", id);
-    } else if (rc == -EINPROGRESS) {
+
+    } else if (rc == EINPROGRESS) {
         pcmk__info("Deletion of resource '%s' from executor is pending", id);
         if (request) {
             struct pending_deletion_op_s *op = NULL;
@@ -857,15 +858,16 @@ delete_resource(lrm_state_t *lrm_state, const char *id, lrmd_rsc_info_t *rsc,
             op->input = copy_ha_msg_input(request);
             g_hash_table_insert(lrm_state->deletion_ops, ref, op);
         }
+
         return;
+
     } else {
         pcmk__warn("Could not delete '%s' from executor for %s%s%s: %s "
                    QB_XS " rc=%d",
                    id, sys, ((user != NULL)? " as " : ""), pcmk__s(user, ""),
-                   pcmk_strerror(rc), rc);
+                   pcmk_rc_str(rc), rc);
     }
 
-    rc = pcmk_legacy2rc(rc);
     delete_rsc_entry(lrm_state, request, id, iter, rc, user, from_cib);
 }
 

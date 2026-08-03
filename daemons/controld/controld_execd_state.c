@@ -989,27 +989,44 @@ controld_execd_state_register_rsc(lrm_state_t *lrm_state, const char *rsc_id,
     return pcmk_legacy2rc(rc);
 }
 
+/*!
+ * \internal
+ * \brief Unegister a resource with the executor via a given state object
+ *
+ * If \p rsc_id is the name of a remote connection resource, remove the executor
+ * state object for node \p rsc_id from the state table.
+ *
+ * Otherwise, remove the \p lrm_state resource info cache entry for \p rsc_id,
+ * and send an unregister request to the executor for \p rsc_id.
+ *
+ * \param[in,out] lrm_state    Executor state
+ * \param[in]     rsc_id       Resource ID
+ *
+ * \return Standard Pacemaker return code
+ *
+ * \todo This function probably shouldn't handle remote connection resources,
+ *       since it doesn't unregister a resource in that case.
+ */
 int
-lrm_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id)
+controld_execd_state_unregister_rsc(lrm_state_t *lrm_state, const char *rsc_id)
 {
+    int rc = pcmk_rc_ok;
+
     pcmk__assert(lrm_state != NULL);
 
     if (lrm_state->conn == NULL) {
-        return -ENOTCONN;
+        return ENOTCONN;
     }
 
     if (is_remote_lrmd_ra(rsc_id)) {
         g_hash_table_remove(lrm_state_table, rsc_id);
-        return pcmk_ok;
+        return pcmk_rc_ok;
     }
 
     g_hash_table_remove(lrm_state->rsc_info_cache, rsc_id);
 
-    /* @TODO Optimize this ... this function is a blocking round trip from
-     * client to daemon. The controld_execd_state.c code path that uses this
-     * function should always treat it as an async operation. The executor API
-     * should make an async version available.
-     */
-    return lrm_state->conn->cmds->unregister_rsc(lrm_state->conn, rsc_id,
-                                                 lrmd_opt_none);
+    // @TODO Implement an asynchronous version of this
+    rc = lrm_state->conn->cmds->unregister_rsc(lrm_state->conn, rsc_id,
+                                               lrmd_opt_none);
+    return pcmk_legacy2rc(rc);
 }
