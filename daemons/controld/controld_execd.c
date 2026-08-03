@@ -548,8 +548,7 @@ lrm_remove_deleted_rsc(void *key, void *value, void *user_data)
     struct pending_deletion_op_s *op = value;
 
     if (pcmk__str_eq(event->rsc, op->rsc, pcmk__str_none)) {
-        notify_deleted(event->lrm_state, op->input, event->rsc,
-                       pcmk_legacy2rc(event->rc));
+        notify_deleted(event->lrm_state, op->input, event->rsc, event->rc);
         return TRUE;
     }
     return FALSE;
@@ -578,7 +577,7 @@ delete_rsc_entry(lrm_state_t *lrm_state, ha_msg_input_t *input,
 
     CRM_CHECK(rsc_id != NULL, return);
 
-    if (rc == pcmk_ok) {
+    if (rc == pcmk_rc_ok) {
         char *rsc_id_copy = pcmk__str_copy(rsc_id);
 
         if (rsc_iter) {
@@ -597,7 +596,7 @@ delete_rsc_entry(lrm_state_t *lrm_state, ha_msg_input_t *input,
     }
 
     if (input) {
-        notify_deleted(lrm_state, input, rsc_id, pcmk_legacy2rc(rc));
+        notify_deleted(lrm_state, input, rsc_id, rc);
     }
 
     event.rc = rc;
@@ -866,6 +865,7 @@ delete_resource(lrm_state_t *lrm_state, const char *id, lrmd_rsc_info_t *rsc,
                    pcmk_strerror(rc), rc);
     }
 
+    rc = pcmk_legacy2rc(rc);
     delete_rsc_entry(lrm_state, request, id, iter, rc, user, from_cib);
 }
 
@@ -1356,7 +1356,7 @@ controld_invoke_execd(fsa_data_t *msg_data)
                         pcmk__xe_id(xml_rsc), operation, rc, pcmk_rc_str(rc),
                         pcmk__xe_id(input->xml));
             delete_rsc_entry(lrm_state, input, pcmk__xe_id(xml_rsc), NULL,
-                             pcmk_ok, user_name, true);
+                             pcmk_rc_ok, user_name, true);
             return;
         }
 
@@ -2228,8 +2228,8 @@ process_lrm_event(lrm_state_t *lrm_state, lrmd_event_data_t *op,
         pcmk__info("Deletion of resource '%s' complete after %s", op->rsc_id,
                    op_key);
         if (lrm_state) {
-            delete_rsc_entry(lrm_state, NULL, op->rsc_id, NULL, pcmk_ok, NULL,
-                             true);
+            delete_rsc_entry(lrm_state, NULL, op->rsc_id, NULL, pcmk_rc_ok,
+                             NULL, true);
         }
     }
 
