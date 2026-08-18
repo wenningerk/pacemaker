@@ -639,6 +639,7 @@ TESTS = [
         [ "no_quorum_demote", "Promotable demotion and primitive stop with no-quorum-policy=\"demote\"" ],
         [ "no-promote-on-unrunnable-guest", "Don't select bundle instance for promotion when container can't run" ],
         [ "leftover-pending-monitor", "Prevent a leftover pending monitor from causing unexpected stop of other instances" ],
+        [ "promotable-colocation-with-node-attribute", "Promote dependent clone on nodes belonging to a site that has a primary clone promoted" ],
     ],
     [
         [ "history-1", "Correctly parse stateful-1 resource state" ],
