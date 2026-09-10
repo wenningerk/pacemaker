@@ -262,6 +262,8 @@ Requires:      %{python_name}-%{name} = %{version}-%{release}
 %{?systemd_requires}
 
 Requires:      %{python_path}
+BuildRequires: %{python_name}-pip
+BuildRequires: %{python_name}-wheel
 BuildRequires: %{python_name}-devel
 BuildRequires: %{python_name}-setuptools
 
@@ -530,7 +532,7 @@ sed -i 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool
 make %{_smp_mflags} V=1
 
 pushd python
-%py3_build
+%pyproject_wheel
 popd
 
 %check
@@ -551,7 +553,7 @@ make install \
   %{?_python_bytecompile_extra:%{?py_byte_compile:am__py_compile=true}}
 
 pushd python
-%py3_install
+%pyproject_install
 popd
 
 mkdir -p ${RPM_BUILD_ROOT}%{_localstatedir}/lib/rpm-state/%{name}
@@ -778,7 +780,7 @@ exit 0
 
 %files -n %{python_name}-%{name}
 %{python3_sitelib}/pacemaker/
-%{python3_sitelib}/pacemaker-*.egg-info
+%{python3_sitelib}/pacemaker-*.dist-info
 %exclude %{python3_sitelib}/pacemaker/_cts/
 %license licenses/LGPLv2.1
 %doc COPYING
